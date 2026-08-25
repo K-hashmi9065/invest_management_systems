@@ -158,8 +158,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
                     AppButton(
                       text: 'Sign In',
-                      height: 48,
-                      fontSize: 15,
                       isLoading: isLoading,
                       onPressed: _handleLogin,
                     ),
