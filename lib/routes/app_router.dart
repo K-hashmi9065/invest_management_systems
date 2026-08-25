@@ -21,6 +21,18 @@ import '../features/settings/presentation/settings_screen.dart';
 
 typedef ProviderReader = T Function<T>(ProviderListenable<T> provider);
 
+class RouterNotifier extends ChangeNotifier {
+  final Ref _ref;
+
+  RouterNotifier(this._ref) {
+    _ref.listen(currentUserProvider, (previous, next) => notifyListeners());
+  }
+}
+
+final routerNotifierProvider = Provider<RouterNotifier>((ref) {
+  return RouterNotifier(ref);
+});
+
 Future<String?> appRedirect({
   required ProviderReader read,
   required BuildContext context,
@@ -45,8 +57,7 @@ Future<String?> appRedirect({
   final currentUser = read(currentUserProvider);
   final isLoggingIn = state.matchedLocation == RoutePaths.login;
   final isSettingUp = state.matchedLocation == RoutePaths.setup;
-  final isUnauthorized =
-      state.matchedLocation == RoutePaths.deviceUnauthorized;
+  final isUnauthorized = state.matchedLocation == RoutePaths.deviceUnauthorized;
 
   if (currentUser == null && !isLoggingIn && !isSettingUp && !isUnauthorized) {
     return RoutePaths.login;
@@ -73,13 +84,12 @@ Future<String?> appRedirect({
 }
 
 final routerProvider = Provider<GoRouter>((ref) {
+  final notifier = ref.watch(routerNotifierProvider);
   return GoRouter(
     initialLocation: RoutePaths.dashboard,
-    redirect: (context, state) => appRedirect(
-      read: ref.read,
-      context: context,
-      state: state,
-    ),
+    refreshListenable: notifier,
+    redirect: (context, state) =>
+        appRedirect(read: ref.read, context: context, state: state),
     routes: [
       GoRoute(
         path: RoutePaths.login,

@@ -30,10 +30,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Future<void> _handleLogin() async {
     if (!_formKey.currentState!.validate()) return;
 
-    final user = await ref.read(loginControllerProvider.notifier).login(
-          _usernameController.text,
-          _passwordController.text,
-        );
+    final user = await ref
+        .read(loginControllerProvider.notifier)
+        .login(_usernameController.text, _passwordController.text);
 
     if (user != null && mounted) {
       context.go(RoutePaths.dashboard);
@@ -123,11 +122,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     ],
 
                     AppTextField(
-                      label: 'Username',
-                      hint: 'Enter your username',
+                      label: 'Email Address or Mobile Number',
+                      hint: 'Enter your registered email or phone',
                       controller: _usernameController,
-                      validator: (val) =>
-                          val == null || val.isEmpty ? 'Username required' : null,
+                      validator: (val) => val == null || val.trim().isEmpty
+                          ? 'Email or mobile number required'
+                          : null,
                     ),
                     const SizedBox(height: 16),
                     AppTextField(
@@ -135,8 +135,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       hint: 'Enter your password',
                       obscureText: true,
                       controller: _passwordController,
-                      validator: (val) =>
-                          val == null || val.isEmpty ? 'Password required' : null,
+                      validator: (val) => val == null || val.isEmpty
+                          ? 'Password required'
+                          : null,
                     ),
                     const SizedBox(height: 8),
                     Align(
@@ -157,6 +158,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
                     AppButton(
                       text: 'Sign In',
+                      height: 48,
+                      fontSize: 15,
                       isLoading: isLoading,
                       onPressed: _handleLogin,
                     ),
@@ -200,7 +203,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 decoration: BoxDecoration(
                   color: AppColors.accent.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: AppColors.accent.withValues(alpha: 0.3)),
+                  border: Border.all(
+                    color: AppColors.accent.withValues(alpha: 0.3),
+                  ),
                 ),
                 child: const Text(
                   'Security Policy Notice:\nTo protect pooled financial assets, user passwords must be reset by an authorized Super Admin.',
@@ -221,7 +226,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 '1. Contact your group\'s Super Admin or System Administrator.\n'
                 '2. Request them to reset your password via System Settings > User Administration.\n'
                 '3. Once reset, log in using the temporary password provided by your Admin.',
-                style: TextStyle(color: AppColors.textSecondary, fontSize: 12, height: 1.4),
+                style: TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 12,
+                  height: 1.4,
+                ),
               ),
             ],
           ),

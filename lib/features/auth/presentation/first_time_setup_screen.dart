@@ -18,7 +18,8 @@ class FirstTimeSetupScreen extends ConsumerStatefulWidget {
 
 class _FirstTimeSetupScreenState extends ConsumerState<FirstTimeSetupScreen> {
   final _fullNameController = TextEditingController();
-  final _usernameController = TextEditingController();
+  final _emailController = TextEditingController();
+  final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
@@ -26,7 +27,8 @@ class _FirstTimeSetupScreenState extends ConsumerState<FirstTimeSetupScreen> {
   @override
   void dispose() {
     _fullNameController.dispose();
-    _usernameController.dispose();
+    _emailController.dispose();
+    _phoneController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
     super.dispose();
@@ -35,9 +37,12 @@ class _FirstTimeSetupScreenState extends ConsumerState<FirstTimeSetupScreen> {
   Future<void> _handleSetup() async {
     if (!_formKey.currentState!.validate()) return;
 
-    final user = await ref.read(setupControllerProvider.notifier).completeSetup(
+    final user = await ref
+        .read(setupControllerProvider.notifier)
+        .completeSetup(
           fullName: _fullNameController.text,
-          username: _usernameController.text,
+          email: _emailController.text,
+          phone: _phoneController.text,
           password: _passwordController.text,
           confirmPassword: _confirmPasswordController.text,
         );
@@ -132,16 +137,27 @@ class _FirstTimeSetupScreenState extends ConsumerState<FirstTimeSetupScreen> {
                       label: 'Full Name',
                       hint: 'Super Admin Name',
                       controller: _fullNameController,
-                      validator: (val) =>
-                          val == null || val.trim().isEmpty ? 'Full name required' : null,
+                      validator: (val) => val == null || val.trim().isEmpty
+                          ? 'Full name required'
+                          : null,
                     ),
                     const SizedBox(height: 16),
                     AppTextField(
-                      label: 'Master Username',
-                      hint: 'Choose admin username',
-                      controller: _usernameController,
-                      validator: (val) =>
-                          val == null || val.trim().isEmpty ? 'Username required' : null,
+                      label: 'Email Address',
+                      hint: 'admin@example.com (Used for Login)',
+                      controller: _emailController,
+                      validator: (val) => val == null || val.trim().isEmpty
+                          ? 'Email required'
+                          : null,
+                    ),
+                    const SizedBox(height: 16),
+                    AppTextField(
+                      label: 'Mobile Number',
+                      hint: '+91 9876543210 (Used for Login)',
+                      controller: _phoneController,
+                      validator: (val) => val == null || val.trim().isEmpty
+                          ? 'Mobile number required'
+                          : null,
                     ),
                     const SizedBox(height: 16),
                     AppTextField(
@@ -149,8 +165,9 @@ class _FirstTimeSetupScreenState extends ConsumerState<FirstTimeSetupScreen> {
                       hint: 'Create strong password',
                       obscureText: true,
                       controller: _passwordController,
-                      validator: (val) =>
-                          val == null || val.length < 4 ? 'Password must be at least 4 chars' : null,
+                      validator: (val) => val == null || val.length < 4
+                          ? 'Password must be at least 4 chars'
+                          : null,
                     ),
                     const SizedBox(height: 16),
                     AppTextField(
@@ -158,13 +175,16 @@ class _FirstTimeSetupScreenState extends ConsumerState<FirstTimeSetupScreen> {
                       hint: 'Re-enter password',
                       obscureText: true,
                       controller: _confirmPasswordController,
-                      validator: (val) =>
-                          val == null || val.isEmpty ? 'Confirm password' : null,
+                      validator: (val) => val == null || val.isEmpty
+                          ? 'Confirm password'
+                          : null,
                     ),
                     const SizedBox(height: 24),
 
                     AppButton(
                       text: 'Complete Setup & Launch',
+                      height: 50,
+                      fontSize: 15,
                       isLoading: isLoading,
                       onPressed: _handleSetup,
                     ),

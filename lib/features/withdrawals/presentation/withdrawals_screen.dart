@@ -28,7 +28,8 @@ class _WithdrawalsScreenState extends ConsumerState<WithdrawalsScreen> {
     final membersAsync = ref.read(membersProvider);
     final members = membersAsync.value ?? [];
 
-    final member = members.where((m) => m.id == user?.memberId).firstOrNull ??
+    final member =
+        members.where((m) => m.id == user?.memberId).firstOrNull ??
         (members.isNotEmpty ? members.first : null);
 
     final maxWithdrawablePaise = member?.availableBalancePaise ?? 0;
@@ -94,8 +95,9 @@ class _WithdrawalsScreenState extends ConsumerState<WithdrawalsScreen> {
                     if (v == null || v.isEmpty) return 'Amount required';
                     final parsed = double.tryParse(v);
                     if (parsed == null || parsed <= 0) return 'Invalid amount';
-                    final requestedPaise =
-                        CurrencyFormatter.rupeesToPaise(parsed);
+                    final requestedPaise = CurrencyFormatter.rupeesToPaise(
+                      parsed,
+                    );
                     if (requestedPaise > maxWithdrawablePaise) {
                       return 'Exceeds available balance (${CurrencyFormatter.formatPaise(maxWithdrawablePaise)})';
                     }
@@ -128,7 +130,9 @@ class _WithdrawalsScreenState extends ConsumerState<WithdrawalsScreen> {
                   await repo.submitWithdrawalRequest(
                     memberId: member?.id ?? 1,
                     amountPaise: paise,
-                    remarks: remarksCtrl.text.isNotEmpty ? remarksCtrl.text : null,
+                    remarks: remarksCtrl.text.isNotEmpty
+                        ? remarksCtrl.text
+                        : null,
                     actionBy: user?.username ?? 'Member',
                   );
 
@@ -157,12 +161,11 @@ class _WithdrawalsScreenState extends ConsumerState<WithdrawalsScreen> {
     final withdrawalsAsync = ref.watch(withdrawalsProvider);
 
     if (user == null) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
-    final isAdmin = user.role == AppConstants.roleAdmin ||
+    final isAdmin =
+        user.role == AppConstants.roleAdmin ||
         user.role == AppConstants.roleSuperAdmin;
 
     return Scaffold(
@@ -188,8 +191,11 @@ class _WithdrawalsScreenState extends ConsumerState<WithdrawalsScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        Wrap(
+                          spacing: 16,
+                          runSpacing: 12,
+                          alignment: WrapAlignment.spaceBetween,
+                          crossAxisAlignment: WrapCrossAlignment.center,
                           children: [
                             Text(
                               isAdmin
@@ -218,15 +224,18 @@ class _WithdrawalsScreenState extends ConsumerState<WithdrawalsScreen> {
                               final filtered = isAdmin
                                   ? items
                                   : items
-                                      .where((w) => w.memberId == user.memberId)
-                                      .toList();
+                                        .where(
+                                          (w) => w.memberId == user.memberId,
+                                        )
+                                        .toList();
 
                               if (filtered.isEmpty) {
                                 return const Center(
                                   child: Text(
                                     'No withdrawal requests found.',
-                                    style:
-                                        TextStyle(color: AppColors.textMuted),
+                                    style: TextStyle(
+                                      color: AppColors.textMuted,
+                                    ),
                                   ),
                                 );
                               }
@@ -237,122 +246,167 @@ class _WithdrawalsScreenState extends ConsumerState<WithdrawalsScreen> {
                                   scrollDirection: Axis.horizontal,
                                   child: SingleChildScrollView(
                                     child: DataTable(
-                                    columns: const [
-                                      DataColumn(label: Text('ID')),
-                                      DataColumn(label: Text('MEMBER')),
-                                      DataColumn(label: Text('AMOUNT')),
-                                      DataColumn(label: Text('REQUESTED AT')),
-                                      DataColumn(label: Text('APPROVED BY')),
-                                      DataColumn(label: Text('STATUS')),
-                                      DataColumn(label: Text('ACTION')),
-                                    ],
-                                    rows: filtered.map((w) {
-                                      return DataRow(
-                                        cells: [
-                                          DataCell(Text('#${w.id}')),
-                                          DataCell(Text(
-                                            w.memberName,
-                                            style: const TextStyle(
-                                              color: AppColors.textPrimary,
-                                              fontWeight: FontWeight.w600,
+                                      columns: const [
+                                        DataColumn(label: Text('ID')),
+                                        DataColumn(label: Text('MEMBER')),
+                                        DataColumn(label: Text('AMOUNT')),
+                                        DataColumn(label: Text('REQUESTED AT')),
+                                        DataColumn(label: Text('APPROVED BY')),
+                                        DataColumn(label: Text('STATUS')),
+                                        DataColumn(label: Text('ACTION')),
+                                      ],
+                                      rows: filtered.map((w) {
+                                        return DataRow(
+                                          cells: [
+                                            DataCell(Text('#${w.id}')),
+                                            DataCell(
+                                              Text(
+                                                w.memberName,
+                                                style: const TextStyle(
+                                                  color: AppColors.textPrimary,
+                                                  fontWeight: FontWeight.w600,
+                                                ),
+                                              ),
                                             ),
-                                          )),
-                                          DataCell(Text(
-                                            CurrencyFormatter.formatPaise(
-                                                w.amountPaise),
-                                            style: const TextStyle(
-                                              color: AppColors.danger,
-                                              fontWeight: FontWeight.bold,
+                                            DataCell(
+                                              Text(
+                                                CurrencyFormatter.formatPaise(
+                                                  w.amountPaise,
+                                                ),
+                                                style: const TextStyle(
+                                                  color: AppColors.danger,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
                                             ),
-                                          )),
-                                          DataCell(Text(
-                                            DateFormatter.formatDate(
-                                              DateTime.parse(w.requestedAt),
+                                            DataCell(
+                                              Text(
+                                                DateFormatter.formatDate(
+                                                  DateTime.parse(w.requestedAt),
+                                                ),
+                                              ),
                                             ),
-                                          )),
-                                          DataCell(Text(w.approvedBy ?? '-')),
-                                          DataCell(
-                                              StatusBadge(status: w.status)),
-                                          DataCell(
-                                            isAdmin &&
-                                                    w.status ==
-                                                        AppConstants.statusPending
-                                                ? Row(
-                                                    children: [
-                                                      IconButton(
-                                                        icon: const Icon(
-                                                          Icons.check_circle,
-                                                          color: AppColors
-                                                              .positive,
-                                                          size: 20,
-                                                        ),
-                                                        tooltip: 'Approve',
-                                                        onPressed: () async {
-                                                          try {
-                                                            final repo = ref.read(
-                                                                appRepositoryProvider);
-                                                            await repo
-                                                                .reviewWithdrawalRequest(
-                                                              withdrawalId: w.id,
-                                                              approve: true,
-                                                              actionBy:
-                                                                  user.username,
-                                                            );
-                                                            refreshAllFinancialProviders(
-                                                                ref);
-                                                          } catch (e, st) {
-                                                            final failure = FailureMapper.map(e, st);
-                                                            if (context.mounted) {
-                                                              ScaffoldMessenger.of(context).showSnackBar(
-                                                                SnackBar(content: Text(failure.userMessage)),
+                                            DataCell(Text(w.approvedBy ?? '-')),
+                                            DataCell(
+                                              StatusBadge(status: w.status),
+                                            ),
+                                            DataCell(
+                                              isAdmin &&
+                                                      w.status ==
+                                                          AppConstants
+                                                              .statusPending
+                                                  ? Row(
+                                                      children: [
+                                                        IconButton(
+                                                          icon: const Icon(
+                                                            Icons.check_circle,
+                                                            color: AppColors
+                                                                .positive,
+                                                            size: 20,
+                                                          ),
+                                                          tooltip: 'Approve',
+                                                          onPressed: () async {
+                                                            try {
+                                                              final repo = ref.read(
+                                                                appRepositoryProvider,
                                                               );
-                                                            }
-                                                          }
-                                                        },
-                                                      ),
-                                                      IconButton(
-                                                        icon: const Icon(
-                                                          Icons.cancel,
-                                                          color: AppColors
-                                                              .danger,
-                                                          size: 20,
-                                                        ),
-                                                        tooltip: 'Reject',
-                                                        onPressed: () async {
-                                                          try {
-                                                            final repo = ref.read(
-                                                                appRepositoryProvider);
-                                                            await repo
-                                                                .reviewWithdrawalRequest(
-                                                              withdrawalId: w.id,
-                                                              approve: false,
-                                                              actionBy:
-                                                                  user.username,
-                                                            );
-                                                            refreshAllFinancialProviders(
-                                                                ref);
-                                                          } catch (e, st) {
-                                                            final failure = FailureMapper.map(e, st);
-                                                            if (context.mounted) {
-                                                              ScaffoldMessenger.of(context).showSnackBar(
-                                                                SnackBar(content: Text(failure.userMessage)),
+                                                              await repo
+                                                                  .reviewWithdrawalRequest(
+                                                                    withdrawalId:
+                                                                        w.id,
+                                                                    approve:
+                                                                        true,
+                                                                    actionBy: user
+                                                                        .username,
+                                                                  );
+                                                              refreshAllFinancialProviders(
+                                                                ref,
                                                               );
+                                                            } catch (e, st) {
+                                                              final failure =
+                                                                  FailureMapper.map(
+                                                                    e,
+                                                                    st,
+                                                                  );
+                                                              if (context
+                                                                  .mounted) {
+                                                                ScaffoldMessenger.of(
+                                                                  context,
+                                                                ).showSnackBar(
+                                                                  SnackBar(
+                                                                    content: Text(
+                                                                      failure
+                                                                          .userMessage,
+                                                                    ),
+                                                                  ),
+                                                                );
+                                                              }
                                                             }
-                                                          }
-                                                        },
+                                                          },
+                                                        ),
+                                                        IconButton(
+                                                          icon: const Icon(
+                                                            Icons.cancel,
+                                                            color: AppColors
+                                                                .danger,
+                                                            size: 20,
+                                                          ),
+                                                          tooltip: 'Reject',
+                                                          onPressed: () async {
+                                                            try {
+                                                              final repo = ref.read(
+                                                                appRepositoryProvider,
+                                                              );
+                                                              await repo
+                                                                  .reviewWithdrawalRequest(
+                                                                    withdrawalId:
+                                                                        w.id,
+                                                                    approve:
+                                                                        false,
+                                                                    actionBy: user
+                                                                        .username,
+                                                                  );
+                                                              refreshAllFinancialProviders(
+                                                                ref,
+                                                              );
+                                                            } catch (e, st) {
+                                                              final failure =
+                                                                  FailureMapper.map(
+                                                                    e,
+                                                                    st,
+                                                                  );
+                                                              if (context
+                                                                  .mounted) {
+                                                                ScaffoldMessenger.of(
+                                                                  context,
+                                                                ).showSnackBar(
+                                                                  SnackBar(
+                                                                    content: Text(
+                                                                      failure
+                                                                          .userMessage,
+                                                                    ),
+                                                                  ),
+                                                                );
+                                                              }
+                                                            }
+                                                          },
+                                                        ),
+                                                      ],
+                                                    )
+                                                  : const Text(
+                                                      '-',
+                                                      style: TextStyle(
+                                                        color:
+                                                            AppColors.textMuted,
                                                       ),
-                                                    ],
-                                                  )
-                                                : const Text('-',
-                                                    style: TextStyle(
-                                                        color: AppColors
-                                                            .textMuted)),
-                                          ),
-                                        ],
-                                      );
-                                    }).toList(),
+                                                    ),
+                                            ),
+                                          ],
+                                        );
+                                      }).toList(),
+                                    ),
                                   ),
-                                ),),
+                                ),
                               );
                             },
                           ),

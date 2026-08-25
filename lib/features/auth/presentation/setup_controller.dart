@@ -5,8 +5,8 @@ import '../domain/user_model.dart';
 
 final setupControllerProvider =
     AsyncNotifierProvider<SetupController, UserModel?>(() {
-  return SetupController();
-});
+      return SetupController();
+    });
 
 class SetupController extends AsyncNotifier<UserModel?> {
   @override
@@ -16,7 +16,8 @@ class SetupController extends AsyncNotifier<UserModel?> {
 
   Future<UserModel?> completeSetup({
     required String fullName,
-    required String username,
+    required String email,
+    required String phone,
     required String password,
     required String confirmPassword,
   }) async {
@@ -31,7 +32,8 @@ class SetupController extends AsyncNotifier<UserModel?> {
       final repo = ref.read(appRepositoryProvider);
       final user = await repo.createSuperAdmin(
         fullName: fullName.trim(),
-        username: username.trim(),
+        email: email.trim(),
+        phone: phone.trim(),
         password: password,
       );
 

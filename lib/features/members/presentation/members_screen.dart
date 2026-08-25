@@ -23,7 +23,6 @@ class MembersScreen extends ConsumerWidget {
     final nameCtrl = TextEditingController();
     final emailCtrl = TextEditingController();
     final phoneCtrl = TextEditingController();
-    final usernameCtrl = TextEditingController();
     final passwordCtrl = TextEditingController();
     final formKey = GlobalKey<FormState>();
 
@@ -55,28 +54,21 @@ class MembersScreen extends ConsumerWidget {
                 const SizedBox(height: 12),
                 AppTextField(
                   label: 'Email Address',
-                  hint: 'Enter member email',
+                  hint: 'Enter member email (Used for Login)',
                   controller: emailCtrl,
                   validator: (v) => v == null || v.isEmpty ? 'Required' : null,
                 ),
                 const SizedBox(height: 12),
                 AppTextField(
                   label: 'Phone Number',
-                  hint: 'Enter phone number',
+                  hint: 'Enter phone number (Used for Login)',
                   controller: phoneCtrl,
                   validator: (v) => v == null || v.isEmpty ? 'Required' : null,
                 ),
                 const SizedBox(height: 12),
                 AppTextField(
-                  label: 'Portal Login Username',
-                  hint: 'Enter login username',
-                  controller: usernameCtrl,
-                  validator: (v) => v == null || v.isEmpty ? 'Required' : null,
-                ),
-                const SizedBox(height: 12),
-                AppTextField(
-                  label: 'Login Password',
-                  hint: 'Enter password',
+                  label: 'Initial Login Password',
+                  hint: 'Enter login password',
                   obscureText: true,
                   controller: passwordCtrl,
                   validator: (v) => v == null || v.isEmpty ? 'Required' : null,
@@ -97,19 +89,11 @@ class MembersScreen extends ConsumerWidget {
                   final user = ref.read(currentUserProvider);
                   final repo = ref.read(appRepositoryProvider);
 
-                  final member = await repo.createMember(
+                  await repo.createMemberWithUser(
                     name: nameCtrl.text,
                     email: emailCtrl.text,
                     phone: phoneCtrl.text,
-                    actionBy: user?.username ?? 'Admin',
-                  );
-
-                  await repo.createUser(
-                    fullName: nameCtrl.text,
-                    username: usernameCtrl.text,
                     password: passwordCtrl.text,
-                    role: AppConstants.roleMember,
-                    memberId: member.id,
                     actionBy: user?.username ?? 'Admin',
                   );
 
@@ -132,6 +116,24 @@ class MembersScreen extends ConsumerWidget {
     );
   }
 
+  String _maskEmail(String email) {
+    if (!email.contains('@')) return '***@***';
+    final parts = email.split('@');
+    final name = parts[0];
+    final domain = parts[1];
+    if (name.length <= 2) return '${name[0]}***@$domain';
+    return '${name.substring(0, 2)}***@$domain';
+  }
+
+  String _maskPhone(String phone) {
+    if (phone.length <= 4) return '******';
+    final prefix = phone.length > 6
+        ? phone.substring(0, 3)
+        : phone.substring(0, 2);
+    final suffix = phone.substring(phone.length - 2);
+    return '$prefix*****$suffix';
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(currentUserProvider);
@@ -139,12 +141,11 @@ class MembersScreen extends ConsumerWidget {
     final searchQuery = ref.watch(memberSearchQueryProvider);
 
     if (user == null) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
-    final isAdmin = user.role == AppConstants.roleAdmin ||
+    final isAdmin =
+        user.role == AppConstants.roleAdmin ||
         user.role == AppConstants.roleSuperAdmin;
 
     return Scaffold(
@@ -170,21 +171,33 @@ class MembersScreen extends ConsumerWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        Wrap(
+                          spacing: 16,
+                          runSpacing: 12,
+                          alignment: WrapAlignment.spaceBetween,
+                          crossAxisAlignment: WrapCrossAlignment.center,
                           children: [
-                            SizedBox(
-                              width: 320,
+                            ConstrainedBox(
+                              constraints: const BoxConstraints(
+                                maxWidth: 360,
+                                minWidth: 220,
+                              ),
                               child: TextField(
-                                onChanged: (val) => ref
-                                    .read(memberSearchQueryProvider.notifier)
-                                    .state = val,
+                                onChanged: (val) =>
+                                    ref
+                                            .read(
+                                              memberSearchQueryProvider
+                                                  .notifier,
+                                            )
+                                            .state =
+                                        val,
                                 style: const TextStyle(
                                   color: AppColors.textPrimary,
                                   fontSize: 14,
                                 ),
                                 decoration: const InputDecoration(
-                                  hintText: 'Search members by name or email...',
+                                  hintText:
+                                      'Search members by name or email...',
                                   prefixIcon: Icon(
                                     Icons.search,
                                     size: 18,
@@ -218,8 +231,9 @@ class MembersScreen extends ConsumerWidget {
                                 return const Center(
                                   child: Text(
                                     'No members found.',
-                                    style:
-                                        TextStyle(color: AppColors.textMuted),
+                                    style: TextStyle(
+                                      color: AppColors.textMuted,
+                                    ),
                                   ),
                                 );
                               }
@@ -230,101 +244,138 @@ class MembersScreen extends ConsumerWidget {
                                   scrollDirection: Axis.horizontal,
                                   child: SingleChildScrollView(
                                     child: DataTable(
-                                    columns: const [
-                                      DataColumn(label: Text('ID')),
-                                      DataColumn(label: Text('NAME')),
-                                      DataColumn(label: Text('EMAIL')),
-                                      DataColumn(label: Text('PHONE')),
-                                      DataColumn(label: Text('CONTRIBUTION')),
-                                      DataColumn(label: Text('SHARE %')),
-                                      DataColumn(label: Text('PROFIT')),
-                                      DataColumn(label: Text('STATUS')),
-                                    ],
-                                    rows: filtered.map((m) {
-                                      return DataRow(
-                                        cells: [
-                                          DataCell(Text('#${m.id}')),
-                                          DataCell(
-                                            Text(
-                                              m.name,
-                                              style: const TextStyle(
-                                                color: AppColors.textPrimary,
-                                                fontWeight: FontWeight.w600,
+                                      columns: const [
+                                        DataColumn(label: Text('ID')),
+                                        DataColumn(label: Text('NAME')),
+                                        DataColumn(label: Text('EMAIL')),
+                                        DataColumn(label: Text('PHONE')),
+                                        DataColumn(label: Text('CONTRIBUTION')),
+                                        DataColumn(label: Text('SHARE %')),
+                                        DataColumn(label: Text('PROFIT')),
+                                        DataColumn(label: Text('STATUS')),
+                                      ],
+                                      rows: filtered.map((m) {
+                                        return DataRow(
+                                          cells: [
+                                            DataCell(Text('#${m.id}')),
+                                            DataCell(
+                                              Text(
+                                                m.name,
+                                                style: const TextStyle(
+                                                  color: AppColors.textPrimary,
+                                                  fontWeight: FontWeight.w600,
+                                                ),
                                               ),
                                             ),
-                                          ),
-                                          DataCell(Text(m.email)),
-                                          DataCell(Text(m.phone)),
-                                          DataCell(
-                                            Text(
-                                              CurrencyFormatter.formatPaise(
-                                                  m.totalContributionPaise),
-                                              style: const TextStyle(
-                                                color: AppColors.textPrimary,
-                                                fontWeight: FontWeight.w500,
+                                            DataCell(
+                                              Text(
+                                                isAdmin
+                                                    ? m.email
+                                                    : _maskEmail(m.email),
                                               ),
                                             ),
-                                          ),
-                                          DataCell(
-                                            Text(
-                                              '${m.contributionPercentage.toStringAsFixed(1)}%',
-                                              style: const TextStyle(
-                                                color: AppColors.accent,
-                                                fontWeight: FontWeight.bold,
+                                            DataCell(
+                                              Text(
+                                                isAdmin
+                                                    ? m.phone
+                                                    : _maskPhone(m.phone),
                                               ),
                                             ),
-                                          ),
-                                          DataCell(
-                                            Text(
-                                              CurrencyFormatter.formatPaise(
-                                                  m.allocatedProfitPaise),
-                                              style: const TextStyle(
-                                                color: AppColors.positive,
-                                                fontWeight: FontWeight.w500,
+                                            DataCell(
+                                              Text(
+                                                CurrencyFormatter.formatPaise(
+                                                  m.totalContributionPaise,
+                                                ),
+                                                style: const TextStyle(
+                                                  color: AppColors.textPrimary,
+                                                  fontWeight: FontWeight.w500,
+                                                ),
                                               ),
                                             ),
-                                          ),
-                                          DataCell(
-                                            Row(
-                                              mainAxisSize: MainAxisSize.min,
-                                              children: [
-                                                StatusBadge(status: m.status),
-                                                if (isAdmin) ...[
-                                                  const SizedBox(width: 4),
-                                                  IconButton(
-                                                    icon: Icon(
-                                                      m.status == AppConstants.statusActive
-                                                          ? Icons.block
-                                                          : Icons.check_circle_outline,
-                                                      size: 16,
-                                                      color: m.status == AppConstants.statusActive
-                                                          ? AppColors.danger
-                                                          : AppColors.positive,
+                                            DataCell(
+                                              Text(
+                                                '${m.contributionPercentage.toStringAsFixed(1)}%',
+                                                style: const TextStyle(
+                                                  color: AppColors.accent,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
+                                            ),
+                                            DataCell(
+                                              Text(
+                                                CurrencyFormatter.formatPaise(
+                                                  m.allocatedProfitPaise,
+                                                ),
+                                                style: const TextStyle(
+                                                  color: AppColors.positive,
+                                                  fontWeight: FontWeight.w500,
+                                                ),
+                                              ),
+                                            ),
+                                            DataCell(
+                                              Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  StatusBadge(status: m.status),
+                                                  if (isAdmin) ...[
+                                                    const SizedBox(width: 4),
+                                                    IconButton(
+                                                      icon: Icon(
+                                                        m.status ==
+                                                                AppConstants
+                                                                    .statusActive
+                                                            ? Icons.block
+                                                            : Icons
+                                                                  .check_circle_outline,
+                                                        size: 16,
+                                                        color:
+                                                            m.status ==
+                                                                AppConstants
+                                                                    .statusActive
+                                                            ? AppColors.danger
+                                                            : AppColors
+                                                                  .positive,
+                                                      ),
+                                                      tooltip:
+                                                          m.status ==
+                                                              AppConstants
+                                                                  .statusActive
+                                                          ? 'Deactivate Member'
+                                                          : 'Activate Member',
+                                                      onPressed: () async {
+                                                        final newStatus =
+                                                            m.status ==
+                                                                AppConstants
+                                                                    .statusActive
+                                                            ? AppConstants
+                                                                  .statusInactive
+                                                            : AppConstants
+                                                                  .statusActive;
+                                                        await ref
+                                                            .read(
+                                                              appRepositoryProvider,
+                                                            )
+                                                            .updateMemberStatus(
+                                                              memberId: m.id,
+                                                              status: newStatus,
+                                                              actionBy:
+                                                                  user.username,
+                                                            );
+                                                        refreshAllFinancialProviders(
+                                                          ref,
+                                                        );
+                                                      },
                                                     ),
-                                                    tooltip: m.status == AppConstants.statusActive
-                                                        ? 'Deactivate Member'
-                                                        : 'Activate Member',
-                                                    onPressed: () async {
-                                                      final newStatus = m.status == AppConstants.statusActive
-                                                          ? AppConstants.statusInactive
-                                                          : AppConstants.statusActive;
-                                                      await ref.read(appRepositoryProvider).updateMemberStatus(
-                                                        memberId: m.id,
-                                                        status: newStatus,
-                                                        actionBy: user.username,
-                                                      );
-                                                      refreshAllFinancialProviders(ref);
-                                                    },
-                                                  ),
+                                                  ],
                                                 ],
-                                              ],
+                                              ),
                                             ),
-                                          ),
-                                        ],
-                                      );
-                                    }).toList(),
+                                          ],
+                                        );
+                                      }).toList(),
+                                    ),
                                   ),
-                                ),),
+                                ),
                               );
                             },
                           ),

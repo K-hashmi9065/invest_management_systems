@@ -27,7 +27,6 @@ class DatabaseHelper {
     _database = null;
   }
 
-
   Future<Database> _initDB(String filePath) async {
     if (kIsWeb) {
       // In web fallback or desktop FFI
@@ -40,21 +39,20 @@ class DatabaseHelper {
 
     // If a test has injected an absolute path or the in-memory sentinel,
     // use it verbatim so tests are fully isolated from production data.
-    final isAbsoluteOrSpecial = filePath == inMemoryDatabasePath ||
+    final isAbsoluteOrSpecial =
+        filePath == inMemoryDatabasePath ||
         filePath.startsWith('/') ||
         (filePath.length > 2 && filePath[1] == ':');
     if (isAbsoluteOrSpecial) {
-      return await openDatabase(
-        filePath,
-        version: 1,
-        onCreate: _createDB,
-      );
+      return await openDatabase(filePath, version: 1, onCreate: _createDB);
     }
 
     String dbPath;
     if (Platform.isWindows) {
       final appData = Platform.environment['PROGRAMDATA'] ?? 'C:\\ProgramData';
-      final dir = Directory(join(appData, 'GroupInvestmentManagement', 'database'));
+      final dir = Directory(
+        join(appData, 'GroupInvestmentManagement', 'database'),
+      );
       if (!dir.existsSync()) {
         dir.createSync(recursive: true);
       }
@@ -64,11 +62,7 @@ class DatabaseHelper {
       dbPath = join(documentsDirectory.path, filePath);
     }
 
-    return await openDatabase(
-      dbPath,
-      version: 1,
-      onCreate: _createDB,
-    );
+    return await openDatabase(dbPath, version: 1, onCreate: _createDB);
   }
 
   Future<void> _createDB(Database db, int version) async {
@@ -79,6 +73,8 @@ class DatabaseHelper {
         password_hash TEXT NOT NULL,
         salt TEXT NOT NULL,
         full_name TEXT NOT NULL,
+        email TEXT,
+        phone TEXT,
         role TEXT NOT NULL,
         member_id INTEGER,
         created_at TEXT NOT NULL

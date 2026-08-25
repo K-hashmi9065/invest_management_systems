@@ -36,11 +36,18 @@ class AppTopBar extends ConsumerWidget {
               children: [
                 const Row(
                   children: [
-                    Icon(Icons.notifications_active, color: AppColors.accent, size: 20),
+                    Icon(
+                      Icons.notifications_active,
+                      color: AppColors.accent,
+                      size: 20,
+                    ),
                     SizedBox(width: 8),
                     Text(
                       'Notifications Center',
-                      style: TextStyle(color: AppColors.textPrimary, fontSize: 16),
+                      style: TextStyle(
+                        color: AppColors.textPrimary,
+                        fontSize: 16,
+                      ),
                     ),
                   ],
                 ),
@@ -52,7 +59,10 @@ class AppTopBar extends ConsumerWidget {
                         .markAllNotificationsAsRead(userId: currentUser?.id);
                     ref.invalidate(notificationsProvider);
                   },
-                  child: const Text('Mark All Read', style: TextStyle(fontSize: 12)),
+                  child: const Text(
+                    'Mark All Read',
+                    style: TextStyle(fontSize: 12),
+                  ),
                 ),
               ],
             ),
@@ -61,7 +71,8 @@ class AppTopBar extends ConsumerWidget {
               height: 380,
               child: notificationsAsync.when(
                 loading: () => const Center(child: CircularProgressIndicator()),
-                error: (err, _) => Center(child: Text('Error loading notifications: $err')),
+                error: (err, _) =>
+                    Center(child: Text('Error loading notifications: $err')),
                 data: (notifications) {
                   if (notifications.isEmpty) {
                     return const Center(
@@ -88,14 +99,18 @@ class AppTopBar extends ConsumerWidget {
                           child: Icon(
                             n.isRead ? Icons.done_all : Icons.notifications,
                             size: 14,
-                            color: n.isRead ? AppColors.textMuted : AppColors.accent,
+                            color: n.isRead
+                                ? AppColors.textMuted
+                                : AppColors.accent,
                           ),
                         ),
                         title: Text(
                           n.title,
                           style: TextStyle(
                             color: AppColors.textPrimary,
-                            fontWeight: n.isRead ? FontWeight.normal : FontWeight.bold,
+                            fontWeight: n.isRead
+                                ? FontWeight.normal
+                                : FontWeight.bold,
                             fontSize: 13,
                           ),
                         ),
@@ -111,7 +126,9 @@ class AppTopBar extends ConsumerWidget {
                             ),
                             const SizedBox(height: 2),
                             Text(
-                              DateFormatter.formatDate(DateTime.parse(n.createdAt)),
+                              DateFormatter.formatDate(
+                                DateTime.parse(n.createdAt),
+                              ),
                               style: const TextStyle(
                                 color: AppColors.textMuted,
                                 fontSize: 10,
@@ -148,19 +165,16 @@ class AppTopBar extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final notificationsAsync = ref.watch(notificationsProvider);
-    final unreadCount = notificationsAsync.value
-            ?.where((n) => !n.isRead)
-            .length ??
-        0;
+    final isCompact = MediaQuery.sizeOf(context).width < 600;
+    final unreadCount =
+        notificationsAsync.value?.where((n) => !n.isRead).length ?? 0;
 
     return Container(
       height: 64,
       padding: const EdgeInsets.symmetric(horizontal: 24),
       decoration: const BoxDecoration(
         color: AppColors.surfacePage,
-        border: Border(
-          bottom: BorderSide(color: AppColors.border, width: 0.5),
-        ),
+        border: Border(bottom: BorderSide(color: AppColors.border, width: 0.5)),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -219,43 +233,45 @@ class AppTopBar extends ConsumerWidget {
                     ),
                 ],
               ),
-              const SizedBox(width: 12),
-              Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    userName,
+              if (!isCompact) ...[
+                const SizedBox(width: 12),
+                Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      userName,
+                      style: const TextStyle(
+                        color: AppColors.textPrimary,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    Text(
+                      userRole.replaceAll('_', ' '),
+                      style: const TextStyle(
+                        color: AppColors.accent,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(width: 12),
+                CircleAvatar(
+                  radius: 16,
+                  backgroundColor: AppColors.surfaceElevated,
+                  child: Text(
+                    userName.isNotEmpty ? userName[0].toUpperCase() : 'U',
                     style: const TextStyle(
                       color: AppColors.textPrimary,
+                      fontWeight: FontWeight.bold,
                       fontSize: 13,
-                      fontWeight: FontWeight.w500,
                     ),
-                  ),
-                  Text(
-                    userRole.replaceAll('_', ' '),
-                    style: const TextStyle(
-                      color: AppColors.accent,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(width: 12),
-              CircleAvatar(
-                radius: 16,
-                backgroundColor: AppColors.surfaceElevated,
-                child: Text(
-                  userName.isNotEmpty ? userName[0].toUpperCase() : 'U',
-                  style: const TextStyle(
-                    color: AppColors.textPrimary,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 13,
                   ),
                 ),
-              ),
-              const SizedBox(width: 12),
+                const SizedBox(width: 12),
+              ],
               IconButton(
                 icon: const Icon(
                   Icons.logout,

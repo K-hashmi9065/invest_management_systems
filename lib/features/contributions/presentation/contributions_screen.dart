@@ -99,7 +99,9 @@ class _ContributionsScreenState extends ConsumerState<ContributionsScreen> {
                     validator: (v) {
                       if (v == null || v.isEmpty) return 'Amount required';
                       final parsed = double.tryParse(v);
-                      if (parsed == null || parsed <= 0) return 'Invalid amount';
+                      if (parsed == null || parsed <= 0){
+                        return 'Invalid amount';
+                      }
                       return null;
                     },
                   ),
@@ -121,10 +123,12 @@ class _ContributionsScreenState extends ConsumerState<ContributionsScreen> {
                       fontSize: 14,
                     ),
                     items: ['Bank Transfer', 'UPI', 'Cash', 'Cheque']
-                        .map((mode) => DropdownMenuItem<String>(
-                              value: mode,
-                              child: Text(mode),
-                            ))
+                        .map(
+                          (mode) => DropdownMenuItem<String>(
+                            value: mode,
+                            child: Text(mode),
+                          ),
+                        )
                         .toList(),
                     onChanged: (val) {
                       if (val != null) {
@@ -166,8 +170,12 @@ class _ContributionsScreenState extends ConsumerState<ContributionsScreen> {
                       memberId: selectedMemberId,
                       amountPaise: paise,
                       paymentMode: paymentMode,
-                      referenceNo: refCtrl.text.isNotEmpty ? refCtrl.text : null,
-                      remarks: remarksCtrl.text.isNotEmpty ? remarksCtrl.text : null,
+                      referenceNo: refCtrl.text.isNotEmpty
+                          ? refCtrl.text
+                          : null,
+                      remarks: remarksCtrl.text.isNotEmpty
+                          ? remarksCtrl.text
+                          : null,
                       actionBy: currentUser?.username ?? 'Admin',
                     );
 
@@ -197,12 +205,11 @@ class _ContributionsScreenState extends ConsumerState<ContributionsScreen> {
     final contributionsAsync = ref.watch(contributionsProvider);
 
     if (user == null) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
-    final isAdmin = user.role == AppConstants.roleAdmin ||
+    final isAdmin =
+        user.role == AppConstants.roleAdmin ||
         user.role == AppConstants.roleSuperAdmin;
 
     return Scaffold(
@@ -228,8 +235,11 @@ class _ContributionsScreenState extends ConsumerState<ContributionsScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        Wrap(
+                          spacing: 16,
+                          runSpacing: 12,
+                          alignment: WrapAlignment.spaceBetween,
+                          crossAxisAlignment: WrapCrossAlignment.center,
                           children: [
                             const Text(
                               'Master Contribution Log',
@@ -257,8 +267,9 @@ class _ContributionsScreenState extends ConsumerState<ContributionsScreen> {
                                 return const Center(
                                   child: Text(
                                     'No approved contributions recorded yet.',
-                                    style:
-                                        TextStyle(color: AppColors.textMuted),
+                                    style: TextStyle(
+                                      color: AppColors.textMuted,
+                                    ),
                                   ),
                                 );
                               }
@@ -269,56 +280,65 @@ class _ContributionsScreenState extends ConsumerState<ContributionsScreen> {
                                   scrollDirection: Axis.horizontal,
                                   child: SingleChildScrollView(
                                     child: DataTable(
-                                    columns: const [
-                                      DataColumn(label: Text('ID')),
-                                      DataColumn(label: Text('MEMBER')),
-                                      DataColumn(label: Text('AMOUNT')),
-                                      DataColumn(label: Text('PAYMENT MODE')),
-                                      DataColumn(label: Text('REFERENCE')),
-                                      DataColumn(label: Text('DATE')),
-                                      DataColumn(label: Text('APPROVED BY')),
-                                      DataColumn(label: Text('STATUS')),
-                                    ],
-                                    rows: items.map((c) {
-                                      return DataRow(
-                                        cells: [
-                                          DataCell(Text('#${c.id}')),
-                                          DataCell(
-                                            Text(
-                                              c.memberName,
-                                              style: const TextStyle(
-                                                color: AppColors.textPrimary,
-                                                fontWeight: FontWeight.w600,
+                                      columns: const [
+                                        DataColumn(label: Text('ID')),
+                                        DataColumn(label: Text('MEMBER')),
+                                        DataColumn(label: Text('AMOUNT')),
+                                        DataColumn(label: Text('PAYMENT MODE')),
+                                        DataColumn(label: Text('REFERENCE')),
+                                        DataColumn(label: Text('DATE')),
+                                        DataColumn(label: Text('APPROVED BY')),
+                                        DataColumn(label: Text('STATUS')),
+                                      ],
+                                      rows: items.map((c) {
+                                        return DataRow(
+                                          cells: [
+                                            DataCell(Text('#${c.id}')),
+                                            DataCell(
+                                              Text(
+                                                c.memberName,
+                                                style: const TextStyle(
+                                                  color: AppColors.textPrimary,
+                                                  fontWeight: FontWeight.w600,
+                                                ),
                                               ),
                                             ),
-                                          ),
-                                          DataCell(
-                                            Text(
-                                              CurrencyFormatter.formatPaise(
-                                                  c.amountPaise),
-                                              style: const TextStyle(
-                                                color: AppColors.positive,
-                                                fontWeight: FontWeight.bold,
+                                            DataCell(
+                                              Text(
+                                                CurrencyFormatter.formatPaise(
+                                                  c.amountPaise,
+                                                ),
+                                                style: const TextStyle(
+                                                  color: AppColors.positive,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
                                               ),
                                             ),
-                                          ),
-                                          DataCell(Text(c.paymentMode)),
-                                          DataCell(Text(c.referenceNo ?? '-')),
-                                          DataCell(Text(
-                                            DateFormatter.formatDate(
-                                              DateTime.parse(
-                                                  c.contributionDate),
+                                            DataCell(Text(c.paymentMode)),
+                                            DataCell(
+                                              Text(c.referenceNo ?? '-'),
                                             ),
-                                          )),
-                                          DataCell(
-                                              Text(c.approvedBy ?? 'System')),
-                                          DataCell(
-                                              StatusBadge(status: c.status)),
-                                        ],
-                                      );
-                                    }).toList(),
+                                            DataCell(
+                                              Text(
+                                                DateFormatter.formatDate(
+                                                  DateTime.parse(
+                                                    c.contributionDate,
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                            DataCell(
+                                              Text(c.approvedBy ?? 'System'),
+                                            ),
+                                            DataCell(
+                                              StatusBadge(status: c.status),
+                                            ),
+                                          ],
+                                        );
+                                      }).toList(),
+                                    ),
                                   ),
-                                ),),
+                                ),
                               );
                             },
                           ),

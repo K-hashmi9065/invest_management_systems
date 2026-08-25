@@ -114,9 +114,11 @@ class _InvestmentsScreenState extends ConsumerState<InvestmentsScreen> {
                 try {
                   final user = ref.read(currentUserProvider);
                   final amountPaise = CurrencyFormatter.rupeesToPaise(
-                      double.parse(amountCtrl.text));
+                    double.parse(amountCtrl.text),
+                  );
                   final returnPaise = CurrencyFormatter.rupeesToPaise(
-                      double.parse(returnCtrl.text));
+                    double.parse(returnCtrl.text),
+                  );
 
                   final repo = ref.read(appRepositoryProvider);
                   await repo.createInvestment(
@@ -126,7 +128,9 @@ class _InvestmentsScreenState extends ConsumerState<InvestmentsScreen> {
                     periodMonths: int.parse(periodCtrl.text),
                     expectedReturnPaise: returnPaise,
                     actionBy: user?.username ?? 'Admin',
-                    remarks: remarksCtrl.text.isNotEmpty ? remarksCtrl.text : null,
+                    remarks: remarksCtrl.text.isNotEmpty
+                        ? remarksCtrl.text
+                        : null,
                   );
 
                   refreshAllFinancialProviders(ref);
@@ -154,12 +158,11 @@ class _InvestmentsScreenState extends ConsumerState<InvestmentsScreen> {
     final investmentsAsync = ref.watch(investmentsProvider);
 
     if (user == null) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
-    final isAdmin = user.role == AppConstants.roleAdmin ||
+    final isAdmin =
+        user.role == AppConstants.roleAdmin ||
         user.role == AppConstants.roleSuperAdmin;
 
     return Scaffold(
@@ -185,8 +188,11 @@ class _InvestmentsScreenState extends ConsumerState<InvestmentsScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        Wrap(
+                          spacing: 16,
+                          runSpacing: 12,
+                          alignment: WrapAlignment.spaceBetween,
+                          crossAxisAlignment: WrapCrossAlignment.center,
                           children: [
                             const Text(
                               'Active & Completed Deployments',
@@ -214,8 +220,9 @@ class _InvestmentsScreenState extends ConsumerState<InvestmentsScreen> {
                                 return const Center(
                                   child: Text(
                                     'No group investments recorded yet.',
-                                    style:
-                                        TextStyle(color: AppColors.textMuted),
+                                    style: TextStyle(
+                                      color: AppColors.textMuted,
+                                    ),
                                   ),
                                 );
                               }
@@ -226,63 +233,83 @@ class _InvestmentsScreenState extends ConsumerState<InvestmentsScreen> {
                                   scrollDirection: Axis.horizontal,
                                   child: SingleChildScrollView(
                                     child: DataTable(
-                                    columns: const [
-                                      DataColumn(label: Text('ID')),
-                                      DataColumn(label: Text('NAME')),
-                                      DataColumn(label: Text('TYPE')),
-                                      DataColumn(label: Text('AMOUNT')),
-                                      DataColumn(label: Text('EXPECTED RETURN')),
-                                      DataColumn(label: Text('ACTUAL RETURN')),
-                                      DataColumn(label: Text('DATE')),
-                                      DataColumn(label: Text('STATUS')),
-                                    ],
-                                    rows: items.map((inv) {
-                                      return DataRow(
-                                        cells: [
-                                          DataCell(Text('#${inv.id}')),
-                                          DataCell(Text(
-                                            inv.name,
-                                            style: const TextStyle(
-                                              color: AppColors.textPrimary,
-                                              fontWeight: FontWeight.w600,
+                                      columns: const [
+                                        DataColumn(label: Text('ID')),
+                                        DataColumn(label: Text('NAME')),
+                                        DataColumn(label: Text('TYPE')),
+                                        DataColumn(label: Text('AMOUNT')),
+                                        DataColumn(
+                                          label: Text('EXPECTED RETURN'),
+                                        ),
+                                        DataColumn(
+                                          label: Text('ACTUAL RETURN'),
+                                        ),
+                                        DataColumn(label: Text('DATE')),
+                                        DataColumn(label: Text('STATUS')),
+                                      ],
+                                      rows: items.map((inv) {
+                                        return DataRow(
+                                          cells: [
+                                            DataCell(Text('#${inv.id}')),
+                                            DataCell(
+                                              Text(
+                                                inv.name,
+                                                style: const TextStyle(
+                                                  color: AppColors.textPrimary,
+                                                  fontWeight: FontWeight.w600,
+                                                ),
+                                              ),
                                             ),
-                                          )),
-                                          DataCell(Text(inv.type)),
-                                          DataCell(Text(
-                                            CurrencyFormatter.formatPaise(
-                                                inv.amountPaise),
-                                            style: const TextStyle(
-                                              color: AppColors.textPrimary,
-                                              fontWeight: FontWeight.bold,
+                                            DataCell(Text(inv.type)),
+                                            DataCell(
+                                              Text(
+                                                CurrencyFormatter.formatPaise(
+                                                  inv.amountPaise,
+                                                ),
+                                                style: const TextStyle(
+                                                  color: AppColors.textPrimary,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
                                             ),
-                                          )),
-                                          DataCell(Text(
-                                            CurrencyFormatter.formatPaise(
-                                                inv.expectedReturnPaise),
-                                            style: const TextStyle(
-                                              color: AppColors.info,
+                                            DataCell(
+                                              Text(
+                                                CurrencyFormatter.formatPaise(
+                                                  inv.expectedReturnPaise,
+                                                ),
+                                                style: const TextStyle(
+                                                  color: AppColors.info,
+                                                ),
+                                              ),
                                             ),
-                                          )),
-                                          DataCell(Text(
-                                            CurrencyFormatter.formatPaise(
-                                                inv.actualReturnPaise),
-                                            style: const TextStyle(
-                                              color: AppColors.positive,
-                                              fontWeight: FontWeight.bold,
+                                            DataCell(
+                                              Text(
+                                                CurrencyFormatter.formatPaise(
+                                                  inv.actualReturnPaise,
+                                                ),
+                                                style: const TextStyle(
+                                                  color: AppColors.positive,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
                                             ),
-                                          )),
-                                          DataCell(Text(
-                                            DateFormatter.formatDate(
-                                              DateTime.parse(inv.investmentDate),
+                                            DataCell(
+                                              Text(
+                                                DateFormatter.formatDate(
+                                                  DateTime.parse(
+                                                    inv.investmentDate,
+                                                  ),
+                                                ),
+                                              ),
                                             ),
-                                          )),
-                                          DataCell(
-                                              StatusBadge(status: inv.status)),
-                                        ],
-                                      );
-                                    }).toList(),
+                                            DataCell(
+                                              StatusBadge(status: inv.status),
+                                            ),
+                                          ],
+                                        );
+                                      }).toList(),
+                                    ),
                                   ),
-                                ),
                                 ),
                               );
                             },

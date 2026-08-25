@@ -61,7 +61,9 @@ class _ContributionRequestsScreenState
                     validator: (v) {
                       if (v == null || v.isEmpty) return 'Amount required';
                       final parsed = double.tryParse(v);
-                      if (parsed == null || parsed <= 0) return 'Invalid amount';
+                      if (parsed == null || parsed <= 0){
+                        return 'Invalid amount';
+                      }
                       return null;
                     },
                   ),
@@ -83,10 +85,12 @@ class _ContributionRequestsScreenState
                       fontSize: 14,
                     ),
                     items: ['Bank Transfer', 'UPI', 'Cash', 'Cheque']
-                        .map((mode) => DropdownMenuItem<String>(
-                              value: mode,
-                              child: Text(mode),
-                            ))
+                        .map(
+                          (mode) => DropdownMenuItem<String>(
+                            value: mode,
+                            child: Text(mode),
+                          ),
+                        )
                         .toList(),
                     onChanged: (val) {
                       if (val != null) {
@@ -121,7 +125,9 @@ class _ContributionRequestsScreenState
                       memberId: user?.memberId ?? 1,
                       amountPaise: paise,
                       paymentMode: paymentMode,
-                      remarks: remarksCtrl.text.isNotEmpty ? remarksCtrl.text : null,
+                      remarks: remarksCtrl.text.isNotEmpty
+                          ? remarksCtrl.text
+                          : null,
                       actionBy: user?.username ?? 'Member',
                     );
 
@@ -151,24 +157,28 @@ class _ContributionRequestsScreenState
     final requestsAsync = ref.watch(contributionRequestsProvider);
 
     if (user == null) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
-    final isAdmin = user.role == AppConstants.roleAdmin ||
+    final isAdmin =
+        user.role == AppConstants.roleAdmin ||
         user.role == AppConstants.roleSuperAdmin;
 
     return Scaffold(
       backgroundColor: AppColors.surfacePage,
       body: Row(
         children: [
-          AppSidebar(currentRoute: '/contribution-requests', userRole: user.role),
+          AppSidebar(
+            currentRoute: '/contribution-requests',
+            userRole: user.role,
+          ),
           Expanded(
             child: Column(
               children: [
                 AppTopBar(
-                  title: isAdmin ? 'Review Contribution Requests' : 'My Money Requests',
+                  title: isAdmin
+                      ? 'Review Contribution Requests'
+                      : 'My Money Requests',
                   userName: user.fullName,
                   userRole: user.role,
                   onLogout: () {
@@ -182,8 +192,11 @@ class _ContributionRequestsScreenState
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        Wrap(
+                          spacing: 16,
+                          runSpacing: 12,
+                          alignment: WrapAlignment.spaceBetween,
+                          crossAxisAlignment: WrapCrossAlignment.center,
                           children: [
                             Text(
                               isAdmin
@@ -212,15 +225,18 @@ class _ContributionRequestsScreenState
                               final filtered = isAdmin
                                   ? requests
                                   : requests
-                                      .where((r) => r.memberId == user.memberId)
-                                      .toList();
+                                        .where(
+                                          (r) => r.memberId == user.memberId,
+                                        )
+                                        .toList();
 
                               if (filtered.isEmpty) {
                                 return const Center(
                                   child: Text(
                                     'No contribution requests pending.',
-                                    style:
-                                        TextStyle(color: AppColors.textMuted),
+                                    style: TextStyle(
+                                      color: AppColors.textMuted,
+                                    ),
                                   ),
                                 );
                               }
@@ -231,122 +247,168 @@ class _ContributionRequestsScreenState
                                   scrollDirection: Axis.horizontal,
                                   child: SingleChildScrollView(
                                     child: DataTable(
-                                    columns: const [
-                                      DataColumn(label: Text('REQ ID')),
-                                      DataColumn(label: Text('MEMBER')),
-                                      DataColumn(label: Text('AMOUNT')),
-                                      DataColumn(label: Text('MODE')),
-                                      DataColumn(label: Text('REQUESTED AT')),
-                                      DataColumn(label: Text('STATUS')),
-                                      DataColumn(label: Text('ACTION')),
-                                    ],
-                                    rows: filtered.map((req) {
-                                      return DataRow(
-                                        cells: [
-                                          DataCell(Text('#${req.id}')),
-                                          DataCell(Text(
-                                            req.memberName,
-                                            style: const TextStyle(
-                                              color: AppColors.textPrimary,
-                                              fontWeight: FontWeight.w600,
+                                      columns: const [
+                                        DataColumn(label: Text('REQ ID')),
+                                        DataColumn(label: Text('MEMBER')),
+                                        DataColumn(label: Text('AMOUNT')),
+                                        DataColumn(label: Text('MODE')),
+                                        DataColumn(label: Text('REQUESTED AT')),
+                                        DataColumn(label: Text('STATUS')),
+                                        DataColumn(label: Text('ACTION')),
+                                      ],
+                                      rows: filtered.map((req) {
+                                        return DataRow(
+                                          cells: [
+                                            DataCell(Text('#${req.id}')),
+                                            DataCell(
+                                              Text(
+                                                req.memberName,
+                                                style: const TextStyle(
+                                                  color: AppColors.textPrimary,
+                                                  fontWeight: FontWeight.w600,
+                                                ),
+                                              ),
                                             ),
-                                          )),
-                                          DataCell(Text(
-                                            CurrencyFormatter.formatPaise(
-                                                req.amountPaise),
-                                            style: const TextStyle(
-                                              color: AppColors.textPrimary,
-                                              fontWeight: FontWeight.bold,
+                                            DataCell(
+                                              Text(
+                                                CurrencyFormatter.formatPaise(
+                                                  req.amountPaise,
+                                                ),
+                                                style: const TextStyle(
+                                                  color: AppColors.textPrimary,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
                                             ),
-                                          )),
-                                          DataCell(Text(req.paymentMode)),
-                                          DataCell(Text(
-                                            DateFormatter.formatDate(
-                                              DateTime.parse(req.requestedAt),
+                                            DataCell(Text(req.paymentMode)),
+                                            DataCell(
+                                              Text(
+                                                DateFormatter.formatDate(
+                                                  DateTime.parse(
+                                                    req.requestedAt,
+                                                  ),
+                                                ),
+                                              ),
                                             ),
-                                          )),
-                                          DataCell(
-                                              StatusBadge(status: req.status)),
-                                          DataCell(
-                                            isAdmin &&
-                                                    req.status ==
-                                                        AppConstants.statusPending
-                                                ? Row(
-                                                    children: [
-                                                      IconButton(
-                                                        icon: const Icon(
-                                                          Icons.check_circle,
-                                                          color: AppColors
-                                                              .positive,
-                                                          size: 20,
-                                                        ),
-                                                        tooltip: 'Approve',
-                                                        onPressed: () async {
-                                                          try {
-                                                            final repo = ref.read(
-                                                                appRepositoryProvider);
-                                                            await repo
-                                                                .reviewContributionRequest(
-                                                              requestId: req.id,
-                                                              approve: true,
-                                                              actionBy:
-                                                                  user.username,
-                                                            );
-                                                            refreshAllFinancialProviders(
-                                                                ref);
-                                                          } catch (e, st) {
-                                                            final failure = FailureMapper.map(e, st);
-                                                            if (context.mounted) {
-                                                              ScaffoldMessenger.of(context).showSnackBar(
-                                                                SnackBar(content: Text(failure.userMessage)),
+                                            DataCell(
+                                              StatusBadge(status: req.status),
+                                            ),
+                                            DataCell(
+                                              isAdmin &&
+                                                      req.status ==
+                                                          AppConstants
+                                                              .statusPending
+                                                  ? Row(
+                                                      children: [
+                                                        IconButton(
+                                                          icon: const Icon(
+                                                            Icons.check_circle,
+                                                            color: AppColors
+                                                                .positive,
+                                                            size: 20,
+                                                          ),
+                                                          tooltip: 'Approve',
+                                                          onPressed: () async {
+                                                            try {
+                                                              final repo = ref.read(
+                                                                appRepositoryProvider,
                                                               );
-                                                            }
-                                                          }
-                                                        },
-                                                      ),
-                                                      IconButton(
-                                                        icon: const Icon(
-                                                          Icons.cancel,
-                                                          color: AppColors
-                                                              .danger,
-                                                          size: 20,
-                                                        ),
-                                                        tooltip: 'Reject',
-                                                        onPressed: () async {
-                                                          try {
-                                                            final repo = ref.read(
-                                                                appRepositoryProvider);
-                                                            await repo
-                                                                .reviewContributionRequest(
-                                                              requestId: req.id,
-                                                              approve: false,
-                                                              actionBy:
-                                                                  user.username,
-                                                            );
-                                                            refreshAllFinancialProviders(
-                                                                ref);
-                                                          } catch (e, st) {
-                                                            final failure = FailureMapper.map(e, st);
-                                                            if (context.mounted) {
-                                                              ScaffoldMessenger.of(context).showSnackBar(
-                                                                SnackBar(content: Text(failure.userMessage)),
+                                                              await repo
+                                                                  .reviewContributionRequest(
+                                                                    requestId:
+                                                                        req.id,
+                                                                    approve:
+                                                                        true,
+                                                                    actionBy: user
+                                                                        .username,
+                                                                  );
+                                                              refreshAllFinancialProviders(
+                                                                ref,
                                                               );
+                                                            } catch (e, st) {
+                                                              final failure =
+                                                                  FailureMapper.map(
+                                                                    e,
+                                                                    st,
+                                                                  );
+                                                              if (context
+                                                                  .mounted) {
+                                                                ScaffoldMessenger.of(
+                                                                  context,
+                                                                ).showSnackBar(
+                                                                  SnackBar(
+                                                                    content: Text(
+                                                                      failure
+                                                                          .userMessage,
+                                                                    ),
+                                                                  ),
+                                                                );
+                                                              }
                                                             }
-                                                          }
-                                                        },
+                                                          },
+                                                        ),
+                                                        IconButton(
+                                                          icon: const Icon(
+                                                            Icons.cancel,
+                                                            color: AppColors
+                                                                .danger,
+                                                            size: 20,
+                                                          ),
+                                                          tooltip: 'Reject',
+                                                          onPressed: () async {
+                                                            try {
+                                                              final repo = ref.read(
+                                                                appRepositoryProvider,
+                                                              );
+                                                              await repo
+                                                                  .reviewContributionRequest(
+                                                                    requestId:
+                                                                        req.id,
+                                                                    approve:
+                                                                        false,
+                                                                    actionBy: user
+                                                                        .username,
+                                                                  );
+                                                              refreshAllFinancialProviders(
+                                                                ref,
+                                                              );
+                                                            } catch (e, st) {
+                                                              final failure =
+                                                                  FailureMapper.map(
+                                                                    e,
+                                                                    st,
+                                                                  );
+                                                              if (context
+                                                                  .mounted) {
+                                                                ScaffoldMessenger.of(
+                                                                  context,
+                                                                ).showSnackBar(
+                                                                  SnackBar(
+                                                                    content: Text(
+                                                                      failure
+                                                                          .userMessage,
+                                                                    ),
+                                                                  ),
+                                                                );
+                                                              }
+                                                            }
+                                                          },
+                                                        ),
+                                                      ],
+                                                    )
+                                                  : const Text(
+                                                      '-',
+                                                      style: TextStyle(
+                                                        color:
+                                                            AppColors.textMuted,
                                                       ),
-                                                    ],
-                                                  )
-                                                : const Text('-',
-                                                    style: TextStyle(
-                                                        color: AppColors
-                                                            .textMuted)),
-                                          ),
-                                        ],
-                                      );
-                                    }).toList(),
+                                                    ),
+                                            ),
+                                          ],
+                                        );
+                                      }).toList(),
+                                    ),
                                   ),
-                                ),
                                 ),
                               );
                             },

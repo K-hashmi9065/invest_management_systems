@@ -70,7 +70,9 @@ class LedgerScreen extends ConsumerWidget {
                     items: const [
                       DropdownMenuItem(
                         value: AppConstants.txAdjustment,
-                        child: Text('ADJUSTMENT (Internal Reversal / Correction)'),
+                        child: Text(
+                          'ADJUSTMENT (Internal Reversal / Correction)',
+                        ),
                       ),
                       DropdownMenuItem(
                         value: 'REFUND',
@@ -125,7 +127,9 @@ class LedgerScreen extends ConsumerWidget {
                     validator: (v) {
                       if (v == null || v.isEmpty) return 'Amount required';
                       final parsed = double.tryParse(v);
-                      if (parsed == null || parsed <= 0) return 'Invalid amount';
+                      if (parsed == null || parsed <= 0){
+                        return ('Invalid amount');
+                      }
                       return null;
                     },
                   ),
@@ -134,8 +138,9 @@ class LedgerScreen extends ConsumerWidget {
                     label: 'Audit Remarks / Reason',
                     hint: 'Enter detailed justification for audit record',
                     controller: remarksCtrl,
-                    validator: (v) =>
-                        v == null || v.trim().isEmpty ? 'Remarks required for audit compliance' : null,
+                    validator: (v) => v == null || v.trim().isEmpty
+                        ? 'Remarks required for audit compliance'
+                        : null,
                   ),
                 ],
               ),
@@ -154,7 +159,9 @@ class LedgerScreen extends ConsumerWidget {
                     final paise = CurrencyFormatter.rupeesToPaise(rupees);
                     final user = ref.read(currentUserProvider);
 
-                    await ref.read(appRepositoryProvider).recordAdjustmentOrRefund(
+                    await ref
+                        .read(appRepositoryProvider)
+                        .recordAdjustmentOrRefund(
                           memberId: selectedMemberId,
                           transactionType: selectedType,
                           amountPaise: paise,
@@ -192,7 +199,8 @@ class LedgerScreen extends ConsumerWidget {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
-    final isAdmin = user.role == AppConstants.roleAdmin ||
+    final isAdmin =
+        user.role == AppConstants.roleAdmin ||
         user.role == AppConstants.roleSuperAdmin;
 
     return Scaffold(
@@ -218,8 +226,11 @@ class LedgerScreen extends ConsumerWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        Wrap(
+                          spacing: 16,
+                          runSpacing: 12,
+                          alignment: WrapAlignment.spaceBetween,
+                          crossAxisAlignment: WrapCrossAlignment.center,
                           children: [
                             const Text(
                               'Audit-Compliant Master Ledger',
@@ -244,42 +255,46 @@ class LedgerScreen extends ConsumerWidget {
                         Wrap(
                           spacing: 8,
                           runSpacing: 8,
-                          children: [
-                            'ALL',
-                            AppConstants.txContribution,
-                            AppConstants.txInvestment,
-                            AppConstants.txProfit,
-                            AppConstants.txLoss,
-                            AppConstants.txWithdrawal,
-                            AppConstants.txAdjustment,
-                            'REFUND',
-                          ].map((filter) {
-                            final isSelected = selectedFilter == filter;
-                            return ChoiceChip(
-                              label: Text(
-                                filter,
-                                style: TextStyle(
-                                  color: isSelected
-                                      ? Colors.white
-                                      : AppColors.textSecondary,
-                                  fontSize: 12,
-                                  fontWeight: isSelected
-                                      ? FontWeight.bold
-                                      : FontWeight.normal,
-                                ),
-                              ),
-                              selected: isSelected,
-                              selectedColor: AppColors.accent,
-                              backgroundColor: AppColors.surfaceCard,
-                              onSelected: (val) {
-                                if (val) {
-                                  ref
-                                      .read(ledgerFilterProvider.notifier)
-                                      .state = filter;
-                                }
-                              },
-                            );
-                          }).toList(),
+                          children:
+                              [
+                                'ALL',
+                                AppConstants.txContribution,
+                                AppConstants.txInvestment,
+                                AppConstants.txProfit,
+                                AppConstants.txLoss,
+                                AppConstants.txWithdrawal,
+                                AppConstants.txAdjustment,
+                                'REFUND',
+                              ].map((filter) {
+                                final isSelected = selectedFilter == filter;
+                                return ChoiceChip(
+                                  label: Text(
+                                    filter,
+                                    style: TextStyle(
+                                      color: isSelected
+                                          ? Colors.white
+                                          : AppColors.textSecondary,
+                                      fontSize: 12,
+                                      fontWeight: isSelected
+                                          ? FontWeight.bold
+                                          : FontWeight.normal,
+                                    ),
+                                  ),
+                                  selected: isSelected,
+                                  selectedColor: AppColors.accent,
+                                  backgroundColor: AppColors.surfaceCard,
+                                  onSelected: (val) {
+                                    if (val) {
+                                      ref
+                                              .read(
+                                                ledgerFilterProvider.notifier,
+                                              )
+                                              .state =
+                                          filter;
+                                    }
+                                  },
+                                );
+                              }).toList(),
                         ),
                         const SizedBox(height: 20),
                         Expanded(
@@ -311,7 +326,9 @@ class LedgerScreen extends ConsumerWidget {
                                       columns: const [
                                         DataColumn(label: Text('TX ID')),
                                         DataColumn(label: Text('TYPE')),
-                                        DataColumn(label: Text('MEMBER / PARTY')),
+                                        DataColumn(
+                                          label: Text('MEMBER / PARTY'),
+                                        ),
                                         DataColumn(label: Text('AMOUNT')),
                                         DataColumn(label: Text('DATE')),
                                         DataColumn(label: Text('STATUS')),
@@ -334,9 +351,9 @@ class LedgerScreen extends ConsumerWidget {
                                               Container(
                                                 padding:
                                                     const EdgeInsets.symmetric(
-                                                  horizontal: 8,
-                                                  vertical: 2,
-                                                ),
+                                                      horizontal: 8,
+                                                      vertical: 2,
+                                                    ),
                                                 decoration: BoxDecoration(
                                                   color:
                                                       AppColors.surfaceElevated,
@@ -346,7 +363,8 @@ class LedgerScreen extends ConsumerWidget {
                                                 child: Text(
                                                   t.transactionType,
                                                   style: const TextStyle(
-                                                    color: AppColors.textPrimary,
+                                                    color:
+                                                        AppColors.textPrimary,
                                                     fontSize: 11,
                                                     fontWeight: FontWeight.bold,
                                                   ),
@@ -354,7 +372,9 @@ class LedgerScreen extends ConsumerWidget {
                                               ),
                                             ),
                                             DataCell(
-                                              Text(t.memberName ?? 'Group Pool'),
+                                              Text(
+                                                t.memberName ?? 'Group Pool',
+                                              ),
                                             ),
                                             DataCell(
                                               Text(

@@ -5,8 +5,8 @@ import '../domain/user_model.dart';
 
 final loginControllerProvider =
     AsyncNotifierProvider<LoginController, UserModel?>(() {
-  return LoginController();
-});
+      return LoginController();
+    });
 
 class LoginController extends AsyncNotifier<UserModel?> {
   @override
@@ -14,14 +14,14 @@ class LoginController extends AsyncNotifier<UserModel?> {
     return null;
   }
 
-  Future<UserModel?> login(String username, String password) async {
+  Future<UserModel?> login(String identifier, String password) async {
     state = const AsyncValue.loading();
     try {
       final repo = ref.read(appRepositoryProvider);
-      final user = await repo.login(username, password);
+      final user = await repo.login(identifier, password);
 
       if (user == null) {
-        throw const AuthenticationFailure('Invalid username or password');
+        throw const AuthenticationFailure('Invalid email/mobile or password');
       }
 
       ref.read(currentUserProvider.notifier).setUser(user);

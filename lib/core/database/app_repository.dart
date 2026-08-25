@@ -12,6 +12,7 @@ import '../../features/notifications/domain/notification_model.dart';
 import '../constants/app_constants.dart';
 import '../calculations/contribution_calculator.dart';
 import '../calculations/profit_calculator.dart';
+import '../errors/app_failure.dart';
 import '../security/password_hasher.dart';
 import '../utils/date_formatter.dart';
 import 'database_helper.dart';
@@ -41,17 +42,29 @@ class AppRepository {
   Future<bool> isFirstTimeSetupNeeded() async {
     final db = await _dbHelper.database;
     final count = Sqflite.firstIntValue(
-      await db.rawQuery("SELECT COUNT(*) FROM users WHERE role = 'SUPER_ADMIN'"),
+      await db.rawQuery(
+        "SELECT COUNT(*) FROM users WHERE role = 'SUPER_ADMIN'",
+      ),
     );
     return count == null || count == 0;
   }
 
-  Future<UserModel?> login(String username, String password) async {
+  Future<UserModel?> login(String identifier, String password) async {
     final db = await _dbHelper.database;
-    final maps = await db.query(
-      'users',
-      where: 'username = ?',
-      whereArgs: [username.trim()],
+    final cleanId = identifier.trim();
+
+    // Match against username, email, phone in users table OR linked member email/phone
+    final maps = await db.rawQuery(
+      '''
+      SELECT u.* FROM users u
+      LEFT JOIN members m ON u.member_id = m.id
+      WHERE u.username = ? 
+         OR u.email = ? 
+         OR u.phone = ?
+         OR m.email = ?
+         OR m.phone = ?
+    ''',
+      [cleanId, cleanId, cleanId, cleanId, cleanId],
     );
 
     if (maps.isEmpty) return null;
@@ -60,7 +73,11 @@ class AppRepository {
     final storedHash = userMap['password_hash'] as String;
     final salt = userMap['salt'] as String;
 
-    final verifyResult = PasswordHasher.verifyPasswordDetailed(password, storedHash, salt);
+    final verifyResult = PasswordHasher.verifyPasswordDetailed(
+      password,
+      storedHash,
+      salt,
+    );
     if (!verifyResult.matched) return null;
 
     // Fix A: upgrade legacy SHA-256 hash to PBKDF2 on first successful login.
@@ -70,8 +87,8 @@ class AppRepository {
       await db.update(
         'users',
         {'password_hash': newHash, 'salt': newSalt},
-        where: 'username = ?',
-        whereArgs: [username.trim()],
+        where: 'id = ?',
+        whereArgs: [userMap['id']],
       );
     }
 
@@ -80,34 +97,43 @@ class AppRepository {
 
   Future<UserModel> createSuperAdmin({
     required String fullName,
-    required String username,
+    String? username,
+    required String email,
+    required String phone,
     required String password,
   }) async {
     final db = await _dbHelper.database;
     final salt = PasswordHasher.generateSalt();
     final hash = PasswordHasher.hashPassword(password, salt);
     final now = DateFormatter.toIso(DateTime.now());
+    final effectiveUsername = username?.trim().isNotEmpty == true
+        ? username!.trim()
+        : email.trim().toLowerCase();
 
     final id = await db.insert('users', {
-      'username': username.trim(),
+      'username': effectiveUsername,
       'password_hash': hash,
       'salt': salt,
       'full_name': fullName.trim(),
+      'email': email.trim(),
+      'phone': phone.trim(),
       'role': AppConstants.roleSuperAdmin,
       'created_at': now,
     });
 
     await logAudit(
       userId: id,
-      username: username,
+      username: effectiveUsername,
       action: 'SYSTEM_SETUP',
-      details: 'Super Admin account created: $username',
+      details: 'Super Admin account created: $effectiveUsername ($fullName)',
     );
 
     return UserModel(
       id: id,
-      username: username,
-      fullName: fullName,
+      username: effectiveUsername,
+      fullName: fullName.trim(),
+      email: email.trim(),
+      phone: phone.trim(),
       role: AppConstants.roleSuperAdmin,
       createdAt: now,
     );
@@ -115,7 +141,9 @@ class AppRepository {
 
   Future<UserModel> createUser({
     required String fullName,
-    required String username,
+    String? username,
+    String? email,
+    String? phone,
     required String password,
     required String role,
     int? memberId,
@@ -126,11 +154,24 @@ class AppRepository {
     final hash = PasswordHasher.hashPassword(password, salt);
     final now = DateFormatter.toIso(DateTime.now());
 
+    final effectiveUsername = username?.trim().isNotEmpty == true
+        ? username!.trim()
+        : (email?.trim().isNotEmpty == true
+              ? email!.trim().toLowerCase()
+              : (phone?.trim().isNotEmpty == true
+                    ? phone!.trim()
+                    : fullName.trim().toLowerCase().replaceAll(
+                        RegExp(r'\s+'),
+                        '_',
+                      )));
+
     final id = await db.insert('users', {
-      'username': username.trim(),
+      'username': effectiveUsername,
       'password_hash': hash,
       'salt': salt,
       'full_name': fullName.trim(),
+      'email': email?.trim(),
+      'phone': phone?.trim(),
       'role': role,
       'member_id': memberId,
       'created_at': now,
@@ -139,37 +180,62 @@ class AppRepository {
     await logAudit(
       username: actionBy,
       action: 'CREATE_USER',
-      details: 'User created: $username ($role)',
+      details: 'User created: $effectiveUsername ($role)',
     );
 
     return UserModel(
       id: id,
-      username: username,
-      fullName: fullName,
+      username: effectiveUsername,
+      fullName: fullName.trim(),
+      email: email?.trim(),
+      phone: phone?.trim(),
       role: role,
       memberId: memberId,
       createdAt: now,
     );
   }
 
-  // MEMBERS & CALCULATIONS
+  // MEMBERS & CALCULATIONS (Optimized Single Aggregated Query)
   Future<List<MemberModel>> getMembers() async {
     final db = await _dbHelper.database;
-    final memberMaps = await db.query('members', orderBy: 'id ASC');
     final summary = await getGroupFinancialSummary();
+
+    final memberMaps = await db.rawQuery('''
+      SELECT 
+        m.*,
+        COALESCE(c.total_contrib, 0) AS total_contribution_paise,
+        COALESCE(pd.total_profit, 0) AS allocated_profit_paise,
+        COALESCE(w.total_withdraw, 0) AS total_withdrawal_paise
+      FROM members m
+      LEFT JOIN (
+        SELECT member_id, SUM(amount_paise) AS total_contrib
+        FROM contributions
+        WHERE status = 'APPROVED'
+        GROUP BY member_id
+      ) c ON m.id = c.member_id
+      LEFT JOIN (
+        SELECT member_id, SUM(profit_amount_paise) AS total_profit
+        FROM profit_distributions
+        GROUP BY member_id
+      ) pd ON m.id = pd.member_id
+      LEFT JOIN (
+        SELECT member_id, SUM(amount_paise) AS total_withdraw
+        FROM withdrawals
+        WHERE status = 'APPROVED'
+        GROUP BY member_id
+      ) w ON m.id = w.member_id
+      ORDER BY m.id ASC
+    ''');
 
     final List<MemberModel> members = [];
 
     for (final map in memberMaps) {
-      final memberId = map['id'] as int;
-
-      // Calculate Member's Total Approved Contribution
-      final contribRes = await db.rawQuery(
-        "SELECT SUM(amount_paise) as total FROM contributions WHERE member_id = ? AND status = 'APPROVED'",
-        [memberId],
-      );
       final totalContribPaise =
-          (contribRes.first['total'] as int?) ?? 0;
+          (map['total_contribution_paise'] as num?)?.toInt() ?? 0;
+      final allocatedProfitPaise =
+          (map['allocated_profit_paise'] as num?)?.toInt() ?? 0;
+      final totalWithdrawalPaise =
+          (map['total_withdrawal_paise'] as num?)?.toInt() ?? 0;
 
       // Calculate Contribution %
       final double contribPct = ContributionCalculator.percentageOf(
@@ -183,36 +249,83 @@ class AppRepository {
         contribPct,
       );
 
-      // Calculate Member's Allocated Profit
-      final profitRes = await db.rawQuery(
-        'SELECT SUM(profit_amount_paise) as total FROM profit_distributions WHERE member_id = ?',
-        [memberId],
-      );
-      final allocatedProfitPaise = (profitRes.first['total'] as int?) ?? 0;
-
-      // Calculate Member's Withdrawals
-      final withdrawRes = await db.rawQuery(
-        "SELECT SUM(amount_paise) as total FROM withdrawals WHERE member_id = ? AND status = 'APPROVED'",
-        [memberId],
-      );
-      final totalWithdrawalPaise = (withdrawRes.first['total'] as int?) ?? 0;
-
       // Calculate Available Balance
       final availableBalancePaise =
           totalContribPaise + allocatedProfitPaise - totalWithdrawalPaise;
 
-      members.add(MemberModel.fromMap(
-        map,
-        totalContributionPaise: totalContribPaise,
-        contributionPercentage: contribPct,
-        investmentSharePaise: investmentSharePaise,
-        allocatedProfitPaise: allocatedProfitPaise,
-        totalWithdrawalPaise: totalWithdrawalPaise,
-        availableBalancePaise: availableBalancePaise,
-      ));
+      members.add(
+        MemberModel.fromMap(
+          map,
+          totalContributionPaise: totalContribPaise,
+          contributionPercentage: contribPct,
+          investmentSharePaise: investmentSharePaise,
+          allocatedProfitPaise: allocatedProfitPaise,
+          totalWithdrawalPaise: totalWithdrawalPaise,
+          availableBalancePaise: availableBalancePaise,
+        ),
+      );
     }
 
     return members;
+  }
+
+  /// Atomic Member + User account creation within a single SQLite transaction
+  Future<MemberModel> createMemberWithUser({
+    required String name,
+    required String email,
+    required String phone,
+    String? username,
+    required String password,
+    required String actionBy,
+  }) async {
+    final db = await _dbHelper.database;
+    final now = DateFormatter.toIso(DateTime.now());
+    final salt = PasswordHasher.generateSalt();
+    final hash = PasswordHasher.hashPassword(password, salt);
+    final effectiveUsername = username?.trim().isNotEmpty == true
+        ? username!.trim()
+        : email.trim().toLowerCase();
+
+    int memberId = 0;
+
+    await db.transaction((txn) async {
+      memberId = await txn.insert('members', {
+        'name': name.trim(),
+        'email': email.trim(),
+        'phone': phone.trim(),
+        'joined_date': now,
+        'status': AppConstants.statusActive,
+      });
+
+      await txn.insert('users', {
+        'username': effectiveUsername,
+        'password_hash': hash,
+        'salt': salt,
+        'full_name': name.trim(),
+        'email': email.trim(),
+        'phone': phone.trim(),
+        'role': AppConstants.roleMember,
+        'member_id': memberId,
+        'created_at': now,
+      });
+
+      await txn.insert('audit_logs', {
+        'username': actionBy,
+        'action': 'ADD_MEMBER_WITH_USER',
+        'details':
+            'Added member $name (#$memberId) with login $effectiveUsername',
+        'timestamp': now,
+      });
+    });
+
+    return MemberModel(
+      id: memberId,
+      name: name,
+      email: email,
+      phone: phone,
+      joinedDate: now,
+      status: AppConstants.statusActive,
+    );
   }
 
   Future<MemberModel> createMember({
@@ -283,7 +396,11 @@ class AppRepository {
     final totalProfitPaise = (profitRes.first['total'] as int?) ?? 0;
 
     // Available Group Balance = Approved Contributions - Invested - Withdrawals + Returns
-    final availablePaise = totalContribPaise - totalInvestedPaise - totalWithdrawalsPaise + totalReturnsPaise;
+    final availablePaise =
+        totalContribPaise -
+        totalInvestedPaise -
+        totalWithdrawalsPaise +
+        totalReturnsPaise;
 
     return GroupFinancialSummary(
       totalApprovedContributionsPaise: totalContribPaise,
@@ -348,7 +465,8 @@ class AppRepository {
     await logAudit(
       username: actionBy,
       action: 'RECORD_CONTRIBUTION',
-      details: 'Recorded approved contribution: ${amountPaise / 100} INR for Member #$memberId',
+      details:
+          'Recorded approved contribution: ${amountPaise / 100} INR for Member #$memberId',
     );
   }
 
@@ -386,7 +504,8 @@ class AppRepository {
     await logAudit(
       username: actionBy,
       action: 'SUBMIT_CONTRIBUTION_REQUEST',
-      details: 'Contribution request submitted: ${amountPaise / 100} INR by Member #$memberId',
+      details:
+          'Contribution request submitted: ${amountPaise / 100} INR by Member #$memberId',
     );
   }
 
@@ -399,7 +518,11 @@ class AppRepository {
     final db = await _dbHelper.database;
     final now = DateFormatter.toIso(DateTime.now());
 
-    final reqs = await db.query('contribution_requests', where: 'id = ?', whereArgs: [requestId]);
+    final reqs = await db.query(
+      'contribution_requests',
+      where: 'id = ?',
+      whereArgs: [requestId],
+    );
     if (reqs.isEmpty) return;
 
     final req = reqs.first;
@@ -461,7 +584,8 @@ class AppRepository {
     await logAudit(
       username: actionBy,
       action: approve ? 'APPROVE_CONTRIBUTION_REQ' : 'REJECT_CONTRIBUTION_REQ',
-      details: '${approve ? "Approved" : "Rejected"} Contribution Request #$requestId',
+      details:
+          '${approve ? "Approved" : "Rejected"} Contribution Request #$requestId',
     );
   }
 
@@ -575,7 +699,8 @@ class AppRepository {
     await logAudit(
       username: actionBy,
       action: 'DISTRIBUTE_PROFIT',
-      details: 'Distributed profit of ${totalProfitPaise / 100} INR for Investment #$investmentId',
+      details:
+          'Distributed profit of ${totalProfitPaise / 100} INR for Investment #$investmentId',
     );
   }
 
@@ -625,7 +750,8 @@ class AppRepository {
     await logAudit(
       username: actionBy,
       action: 'DISTRIBUTE_LOSS',
-      details: 'Distributed loss of ${totalLossPaise / 100} INR for Investment #$investmentId',
+      details:
+          'Distributed loss of ${totalLossPaise / 100} INR for Investment #$investmentId',
     );
   }
 
@@ -634,6 +760,45 @@ class AppRepository {
     final db = await _dbHelper.database;
     final maps = await db.query('users', orderBy: 'id ASC');
     return maps.map((m) => UserModel.fromMap(m)).toList();
+  }
+
+  Future<void> updateUserRole({
+    required int userId,
+    required String newRole,
+    required String actionBy,
+  }) async {
+    final db = await _dbHelper.database;
+    await db.update(
+      'users',
+      {'role': newRole},
+      where: 'id = ?',
+      whereArgs: [userId],
+    );
+
+    await logAudit(
+      username: actionBy,
+      action: 'UPDATE_USER_ROLE',
+      details: 'Updated User #$userId role to $newRole',
+    );
+  }
+
+  Future<void> deleteUser({
+    required int userId,
+    required String actionBy,
+  }) async {
+    final db = await _dbHelper.database;
+    final users = await db.query('users', where: 'id = ?', whereArgs: [userId]);
+    final username = users.isNotEmpty
+        ? users.first['username']
+        : 'User #$userId';
+
+    await db.delete('users', where: 'id = ?', whereArgs: [userId]);
+
+    await logAudit(
+      username: actionBy,
+      action: 'DELETE_USER',
+      details: 'Deleted user account: $username (ID: $userId)',
+    );
   }
 
   Future<void> updateMemberStatus({
@@ -667,10 +832,7 @@ class AppRepository {
 
     await db.update(
       'users',
-      {
-        'password_hash': hash,
-        'salt': salt,
-      },
+      {'password_hash': hash, 'salt': salt},
       where: 'id = ?',
       whereArgs: [userId],
     );
@@ -696,10 +858,7 @@ class AppRepository {
 
     await db.update(
       'users',
-      {
-        'password_hash': hash,
-        'salt': salt,
-      },
+      {'password_hash': hash, 'salt': salt},
       where: 'username = ?',
       whereArgs: [username],
     );
@@ -745,7 +904,8 @@ class AppRepository {
     await logAudit(
       username: actionBy,
       action: 'SUBMIT_WITHDRAWAL_REQ',
-      details: 'Submitted withdrawal request of ${amountPaise / 100} INR for Member #$memberId',
+      details:
+          'Submitted withdrawal request of ${amountPaise / 100} INR for Member #$memberId',
     );
   }
 
@@ -758,7 +918,11 @@ class AppRepository {
     final db = await _dbHelper.database;
     final now = DateFormatter.toIso(DateTime.now());
 
-    final withdraws = await db.query('withdrawals', where: 'id = ?', whereArgs: [withdrawalId]);
+    final withdraws = await db.query(
+      'withdrawals',
+      where: 'id = ?',
+      whereArgs: [withdrawalId],
+    );
     if (withdraws.isEmpty) return;
 
     final w = withdraws.first;
@@ -767,6 +931,32 @@ class AppRepository {
 
     if (approve) {
       await db.transaction((txn) async {
+        // Overdraft prevention check within transaction
+        final contribRes = await txn.rawQuery(
+          "SELECT SUM(amount_paise) as total FROM contributions WHERE member_id = ? AND status = 'APPROVED'",
+          [memberId],
+        );
+        final totalContrib = (contribRes.first['total'] as int?) ?? 0;
+
+        final profitRes = await txn.rawQuery(
+          'SELECT SUM(profit_amount_paise) as total FROM profit_distributions WHERE member_id = ?',
+          [memberId],
+        );
+        final totalProfit = (profitRes.first['total'] as int?) ?? 0;
+
+        final priorWithdrawRes = await txn.rawQuery(
+          "SELECT SUM(amount_paise) as total FROM withdrawals WHERE member_id = ? AND status = 'APPROVED'",
+          [memberId],
+        );
+        final priorWithdraw = (priorWithdrawRes.first['total'] as int?) ?? 0;
+
+        final currentBalance = totalContrib + totalProfit - priorWithdraw;
+        if (currentBalance < amountPaise) {
+          throw FinancialFailure(
+            'Cannot approve withdrawal of ₹${amountPaise / 100}. Member available balance is only ₹${currentBalance / 100}.',
+          );
+        }
+
         await txn.update(
           'withdrawals',
           {
@@ -874,7 +1064,8 @@ class AppRepository {
 
     await createNotification(
       title: 'Ledger $transactionType Posted',
-      message: '$transactionType of ₹${amountPaise / 100} posted by $actionBy: $remarks',
+      message:
+          '$transactionType of ₹${amountPaise / 100} posted by $actionBy: $remarks',
       type: transactionType,
     );
 
