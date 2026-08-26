@@ -13,6 +13,7 @@ import '../../../core/widgets/app_text_field.dart';
 import '../../../core/widgets/app_top_bar.dart';
 import '../../../core/widgets/async_value_widget.dart';
 import '../../../core/widgets/status_badge.dart';
+import '../../../core/widgets/horizontal_scrollable_table.dart';
 
 final memberSearchQueryProvider = StateProvider<String>((ref) => '');
 
@@ -25,93 +26,141 @@ class MembersScreen extends ConsumerWidget {
     final phoneCtrl = TextEditingController();
     final passwordCtrl = TextEditingController();
     final formKey = GlobalKey<FormState>();
+    String selectedRole = AppConstants.roleMember;
 
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.surfaceCard,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-          side: const BorderSide(color: AppColors.border, width: 0.5),
-        ),
-        title: const Text(
-          'Add New Group Member',
-          style: TextStyle(color: AppColors.textPrimary, fontSize: 16),
-        ),
-        content: SizedBox(
-          width: 440,
-          child: Form(
-            key: formKey,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                AppTextField(
-                  label: 'Full Name',
-                  hint: 'Enter member name',
-                  controller: nameCtrl,
-                  validator: (v) => v == null || v.isEmpty ? 'Required' : null,
-                ),
-                const SizedBox(height: 12),
-                AppTextField(
-                  label: 'Email Address',
-                  hint: 'Enter member email (Used for Login)',
-                  controller: emailCtrl,
-                  validator: (v) => v == null || v.isEmpty ? 'Required' : null,
-                ),
-                const SizedBox(height: 12),
-                AppTextField(
-                  label: 'Phone Number',
-                  hint: 'Enter phone number (Used for Login)',
-                  controller: phoneCtrl,
-                  validator: (v) => v == null || v.isEmpty ? 'Required' : null,
-                ),
-                const SizedBox(height: 12),
-                AppTextField(
-                  label: 'Initial Login Password',
-                  hint: 'Enter login password',
-                  obscureText: true,
-                  controller: passwordCtrl,
-                  validator: (v) => v == null || v.isEmpty ? 'Required' : null,
-                ),
-              ],
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          backgroundColor: AppColors.surfaceCard,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+            side: const BorderSide(color: AppColors.border, width: 0.5),
+          ),
+          title: const Text(
+            'Add New Group Member',
+            style: TextStyle(color: AppColors.textPrimary, fontSize: 16),
+          ),
+          content: SizedBox(
+            width: 440,
+            child: Form(
+              key: formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  AppTextField(
+                    label: 'Full Name',
+                    hint: 'Enter member name',
+                    controller: nameCtrl,
+                    validator: (v) =>
+                        v == null || v.isEmpty ? 'Required' : null,
+                  ),
+                  const SizedBox(height: 12),
+                  AppTextField(
+                    label: 'Email Address',
+                    hint: 'Enter member email (Used for Login)',
+                    controller: emailCtrl,
+                    validator: (v) =>
+                        v == null || v.isEmpty ? 'Required' : null,
+                  ),
+                  const SizedBox(height: 12),
+                  AppTextField(
+                    label: 'Phone Number',
+                    hint: 'Enter phone number (Used for Login)',
+                    controller: phoneCtrl,
+                    validator: (v) =>
+                        v == null || v.isEmpty ? 'Required' : null,
+                  ),
+                  const SizedBox(height: 12),
+                  AppTextField(
+                    label: 'Initial Login Password',
+                    hint: 'Enter login password',
+                    obscureText: true,
+                    controller: passwordCtrl,
+                    validator: (v) =>
+                        v == null || v.isEmpty ? 'Required' : null,
+                  ),
+                  const SizedBox(height: 12),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'User Role',
+                        style: TextStyle(
+                          color: AppColors.textSecondary,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      DropdownButtonFormField<String>(
+                        initialValue: selectedRole,
+                        dropdownColor: AppColors.surfaceElevated,
+                        style: const TextStyle(
+                          color: AppColors.textPrimary,
+                          fontSize: 14,
+                        ),
+                        items: const [
+                          DropdownMenuItem<String>(
+                            value: AppConstants.roleMember,
+                            child: Text('Member'),
+                          ),
+                          DropdownMenuItem<String>(
+                            value: AppConstants.roleAdmin,
+                            child: Text('Admin'),
+                          ),
+                        ],
+                        onChanged: (val) {
+                          if (val != null) {
+                            setDialogState(() {
+                              selectedRole = val;
+                            });
+                          }
+                        },
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
-        ),
-        actions: [
-          OutlinedButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              if (formKey.currentState!.validate()) {
-                try {
-                  final user = ref.read(currentUserProvider);
-                  final repo = ref.read(appRepositoryProvider);
+          actions: [
+            OutlinedButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                if (formKey.currentState!.validate()) {
+                  try {
+                    final user = ref.read(currentUserProvider);
+                    final repo = ref.read(appRepositoryProvider);
 
-                  await repo.createMemberWithUser(
-                    name: nameCtrl.text,
-                    email: emailCtrl.text,
-                    phone: phoneCtrl.text,
-                    password: passwordCtrl.text,
-                    actionBy: user?.username ?? 'Admin',
-                  );
-
-                  refreshAllFinancialProviders(ref);
-                  if (ctx.mounted) Navigator.pop(ctx);
-                } catch (e, st) {
-                  final failure = FailureMapper.map(e, st);
-                  if (ctx.mounted) {
-                    ScaffoldMessenger.of(ctx).showSnackBar(
-                      SnackBar(content: Text(failure.userMessage)),
+                    await repo.createMemberWithUser(
+                      name: nameCtrl.text,
+                      email: emailCtrl.text,
+                      phone: phoneCtrl.text,
+                      password: passwordCtrl.text,
+                      role: selectedRole,
+                      actionBy: user?.username ?? 'Admin',
                     );
+
+                    refreshAllFinancialProviders(ref);
+                    if (ctx.mounted) Navigator.pop(ctx);
+                  } catch (e, st) {
+                    final failure = FailureMapper.map(e, st);
+                    if (ctx.mounted) {
+                      ScaffoldMessenger.of(ctx).showSnackBar(
+                        SnackBar(content: Text(failure.userMessage)),
+                      );
+                    }
                   }
                 }
-              }
-            },
-            child: const Text('Add Member'),
-          ),
-        ],
+              },
+              child: const Text('Add Member'),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -240,8 +289,7 @@ class MembersScreen extends ConsumerWidget {
 
                               return AppCard(
                                 padding: EdgeInsets.zero,
-                                child: SingleChildScrollView(
-                                  scrollDirection: Axis.horizontal,
+                                child: HorizontalScrollableTable(
                                   child: SingleChildScrollView(
                                     child: DataTable(
                                       columns: const [

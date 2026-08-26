@@ -110,6 +110,26 @@ void main() {
         expect(members.first.name, equals('First User'));
       },
     );
+
+    test(
+      'createMemberWithUser creates user with custom role (ADMIN)',
+      () async {
+        final member = await repo.createMemberWithUser(
+          name: 'Charlie Admin',
+          email: 'charlie@example.com',
+          phone: '+91 3333333333',
+          password: 'Password123!',
+          role: 'ADMIN',
+          actionBy: 'Admin',
+        );
+
+        expect(member.id, isPositive);
+
+        final user = await repo.login('charlie@example.com', 'Password123!');
+        expect(user, isNotNull);
+        expect(user!.role, equals('ADMIN'));
+      },
+    );
   });
 
   group('Withdrawal Overdraft Protection Tests', () {

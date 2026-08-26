@@ -13,6 +13,7 @@ import '../../../core/widgets/app_sidebar.dart';
 import '../../../core/widgets/app_text_field.dart';
 import '../../../core/widgets/app_top_bar.dart';
 import '../../../core/widgets/async_value_widget.dart';
+import '../../../core/widgets/horizontal_scrollable_table.dart';
 import '../../../core/widgets/status_badge.dart';
 
 class WithdrawalsScreen extends ConsumerStatefulWidget {
@@ -174,6 +175,8 @@ class _WithdrawalsScreenState extends ConsumerState<WithdrawalsScreen> {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
+
+
     final isAdmin =
         user.role == AppConstants.roleAdmin ||
         user.role == AppConstants.roleSuperAdmin;
@@ -252,8 +255,7 @@ class _WithdrawalsScreenState extends ConsumerState<WithdrawalsScreen> {
 
                               return AppCard(
                                 padding: EdgeInsets.zero,
-                                child: SingleChildScrollView(
-                                  scrollDirection: Axis.horizontal,
+                                child: HorizontalScrollableTable(
                                   child: SingleChildScrollView(
                                     child: DataTable(
                                       columns: const [
@@ -403,13 +405,13 @@ class _WithdrawalsScreenState extends ConsumerState<WithdrawalsScreen> {
                                                         ),
                                                       ],
                                                     )
-                                                  : const Text(
-                                                      '-',
-                                                      style: TextStyle(
-                                                        color:
-                                                            AppColors.textMuted,
-                                                      ),
-                                                    ),
+                                                   : const Text(
+                                                       '-',
+                                                       style: TextStyle(
+                                                         color:
+                                                             AppColors.textMuted,
+                                                       ),
+                                                     ),
                                             ),
                                           ],
                                         );

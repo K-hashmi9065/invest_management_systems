@@ -14,6 +14,7 @@ import '../../../core/widgets/app_text_field.dart';
 import '../../../core/widgets/app_top_bar.dart';
 import '../../../core/widgets/async_value_widget.dart';
 import '../../../core/widgets/status_badge.dart';
+import '../../../core/widgets/horizontal_scrollable_table.dart';
 
 class InvestmentsScreen extends ConsumerStatefulWidget {
   const InvestmentsScreen({super.key});
@@ -48,58 +49,66 @@ class _InvestmentsScreenState extends ConsumerState<InvestmentsScreen> {
           width: 440,
           child: Form(
             key: formKey,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                AppTextField(
-                  label: 'Investment Name',
-                  hint: 'e.g. Commercial Real Estate / Mutual Fund A',
-                  controller: nameCtrl,
-                  validator: (v) => v == null || v.isEmpty ? 'Required' : null,
-                ),
-                const SizedBox(height: 12),
-                AppTextField(
-                  label: 'Investment Type',
-                  hint: 'e.g. Real Estate, Stocks, FD, Startup',
-                  controller: typeCtrl,
-                  validator: (v) => v == null || v.isEmpty ? 'Required' : null,
-                ),
-                const SizedBox(height: 12),
-                AppTextField(
-                  label: 'Investment Amount (₹)',
-                  hint: 'e.g. 500000',
-                  keyboardType: TextInputType.number,
-                  controller: amountCtrl,
-                  validator: (v) {
-                    if (v == null || v.isEmpty) return 'Amount required';
-                    final parsed = double.tryParse(v);
-                    if (parsed == null || parsed <= 0) return 'Invalid amount';
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 12),
-                AppTextField(
-                  label: 'Investment Period (Months)',
-                  hint: 'e.g. 12',
-                  keyboardType: TextInputType.number,
-                  controller: periodCtrl,
-                  validator: (v) => v == null || v.isEmpty ? 'Required' : null,
-                ),
-                const SizedBox(height: 12),
-                AppTextField(
-                  label: 'Expected Return Amount (₹)',
-                  hint: 'e.g. 600000',
-                  keyboardType: TextInputType.number,
-                  controller: returnCtrl,
-                  validator: (v) => v == null || v.isEmpty ? 'Required' : null,
-                ),
-                const SizedBox(height: 12),
-                AppTextField(
-                  label: 'Remarks / Notes',
-                  hint: 'Optional notes',
-                  controller: remarksCtrl,
-                ),
-              ],
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  AppTextField(
+                    label: 'Investment Name',
+                    hint: 'e.g. Commercial Real Estate / Mutual Fund A',
+                    controller: nameCtrl,
+                    validator: (v) =>
+                        v == null || v.isEmpty ? 'Required' : null,
+                  ),
+                  const SizedBox(height: 12),
+                  AppTextField(
+                    label: 'Investment Type',
+                    hint: 'e.g. Real Estate, Stocks, FD, Startup',
+                    controller: typeCtrl,
+                    validator: (v) =>
+                        v == null || v.isEmpty ? 'Required' : null,
+                  ),
+                  const SizedBox(height: 12),
+                  AppTextField(
+                    label: 'Investment Amount (₹)',
+                    hint: 'e.g. 500000',
+                    keyboardType: TextInputType.number,
+                    controller: amountCtrl,
+                    validator: (v) {
+                      if (v == null || v.isEmpty) return 'Amount required';
+                      final parsed = double.tryParse(v);
+                      if (parsed == null || parsed <= 0){
+                        return 'Invalid amount';
+                      }
+                      return null;  
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  AppTextField(
+                    label: 'Investment Period (Months)',
+                    hint: 'e.g. 12',
+                    keyboardType: TextInputType.number,
+                    controller: periodCtrl,
+                    validator: (v) =>
+                        v == null || v.isEmpty ? 'Required' : null,
+                  ),
+                  const SizedBox(height: 12),
+                  AppTextField(
+                    label: 'Expected Return Amount (₹)',
+                    hint: 'e.g. 600000',
+                    keyboardType: TextInputType.number,
+                    controller: returnCtrl,
+                    validator: (v) =>
+                        v == null || v.isEmpty ? 'Required' : null,
+                  ),
+                  const SizedBox(height: 12),
+                  AppTextField(
+                    label: 'Remarks / Notes',
+                    hint: 'Optional notes',
+                    controller: remarksCtrl,
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -229,8 +238,7 @@ class _InvestmentsScreenState extends ConsumerState<InvestmentsScreen> {
 
                               return AppCard(
                                 padding: EdgeInsets.zero,
-                                child: SingleChildScrollView(
-                                  scrollDirection: Axis.horizontal,
+                                child: HorizontalScrollableTable(
                                   child: SingleChildScrollView(
                                     child: DataTable(
                                       columns: const [

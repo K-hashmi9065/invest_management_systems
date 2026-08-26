@@ -9,6 +9,8 @@ class ContributionRequestModel {
   final String? reviewedBy;
   final String? reviewedAt;
   final String? remarks;
+  final String? reviewerName;
+  final String? reviewerRole;
 
   ContributionRequestModel({
     required this.id,
@@ -21,6 +23,8 @@ class ContributionRequestModel {
     this.reviewedBy,
     this.reviewedAt,
     this.remarks,
+    this.reviewerName,
+    this.reviewerRole,
   });
 
   factory ContributionRequestModel.fromMap(Map<String, dynamic> map, {String memberName = ''}) {
@@ -35,6 +39,8 @@ class ContributionRequestModel {
       reviewedBy: map['reviewed_by'] as String?,
       reviewedAt: map['reviewed_at'] as String?,
       remarks: map['remarks'] as String?,
+      reviewerName: map['reviewer_name'] as String?,
+      reviewerRole: map['reviewer_role'] as String?,
     );
   }
 }

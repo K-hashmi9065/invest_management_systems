@@ -312,6 +312,7 @@ class AppRepository {
     required String phone,
     String? username,
     required String password,
+    String role = AppConstants.roleMember,
     required String actionBy,
   }) async {
     final db = await _dbHelper.database;
@@ -340,7 +341,7 @@ class AppRepository {
         'full_name': name.trim(),
         'email': email.trim(),
         'phone': phone.trim(),
-        'role': AppConstants.roleMember,
+        'role': role,
         'member_id': memberId,
         'created_at': now,
       });
@@ -531,9 +532,10 @@ class AppRepository {
   Future<List<ContributionRequestModel>> getContributionRequests() async {
     final db = await _dbHelper.database;
     final maps = await db.rawQuery('''
-      SELECT r.*, m.name as member_name 
+      SELECT r.*, m.name as member_name, u.full_name as reviewer_name, u.role as reviewer_role
       FROM contribution_requests r 
       JOIN members m ON r.member_id = m.id 
+      LEFT JOIN users u ON r.reviewed_by = u.username
       ORDER BY r.id DESC
     ''');
     return maps.map((m) => ContributionRequestModel.fromMap(m)).toList();
@@ -884,6 +886,30 @@ class AppRepository {
     required String actionBy,
   }) async {
     final db = await _dbHelper.database;
+
+    // Security check: standard ADMIN cannot reset the password of a SUPER_ADMIN
+    final targetUserMap = await db.query(
+      'users',
+      where: 'id = ?',
+      whereArgs: [userId],
+    );
+    if (targetUserMap.isNotEmpty) {
+      final targetRole = targetUserMap.first['role'] as String;
+      if (targetRole == AppConstants.roleSuperAdmin) {
+        final actionUserMap = await db.query(
+          'users',
+          where: 'username = ?',
+          whereArgs: [actionBy],
+        );
+        if (actionUserMap.isNotEmpty) {
+          final actionRole = actionUserMap.first['role'] as String;
+          if (actionRole != AppConstants.roleSuperAdmin) {
+            throw const AuthorizationFailure('Unprivileged action: standard admin cannot reset password of a Super Admin.');
+          }
+        }
+      }
+    }
+
     final salt = PasswordHasher.generateSalt();
     final hash = PasswordHasher.hashPassword(newPassword, salt);
 
@@ -933,9 +959,10 @@ class AppRepository {
   Future<List<WithdrawalModel>> getWithdrawals() async {
     final db = await _dbHelper.database;
     final maps = await db.rawQuery('''
-      SELECT w.*, m.name as member_name
+      SELECT w.*, m.name as member_name, u.full_name as approver_name, u.role as approver_role
       FROM withdrawals w
       JOIN members m ON w.member_id = m.id
+      LEFT JOIN users u ON w.approved_by = u.username
       ORDER BY w.id DESC
     ''');
     return maps.map((m) => WithdrawalModel.fromMap(m)).toList();

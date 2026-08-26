@@ -49,6 +49,7 @@ class RolePermissions {
       AppPermission.viewLedger,
       AppPermission.manageUsers,
       AppPermission.viewAuditLogs,
+      AppPermission.manageSettings,
     },
     AppConstants.roleMember: {
       AppPermission.viewDashboard,

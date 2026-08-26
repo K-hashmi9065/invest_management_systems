@@ -14,6 +14,7 @@ import '../../../core/widgets/app_text_field.dart';
 import '../../../core/widgets/app_top_bar.dart';
 import '../../../core/widgets/async_value_widget.dart';
 import '../../../core/widgets/status_badge.dart';
+import '../../../core/widgets/horizontal_scrollable_table.dart';
 
 class ContributionRequestsScreen extends ConsumerStatefulWidget {
   const ContributionRequestsScreen({super.key});
@@ -171,6 +172,8 @@ class _ContributionRequestsScreenState
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
+
+
     final isAdmin =
         user.role == AppConstants.roleAdmin ||
         user.role == AppConstants.roleSuperAdmin;
@@ -254,8 +257,7 @@ class _ContributionRequestsScreenState
 
                               return AppCard(
                                 padding: EdgeInsets.zero,
-                                child: SingleChildScrollView(
-                                  scrollDirection: Axis.horizontal,
+                                child: HorizontalScrollableTable(
                                   child: SingleChildScrollView(
                                     child: DataTable(
                                       columns: const [
@@ -264,6 +266,7 @@ class _ContributionRequestsScreenState
                                         DataColumn(label: Text('AMOUNT')),
                                         DataColumn(label: Text('MODE')),
                                         DataColumn(label: Text('REQUESTED AT')),
+                                        DataColumn(label: Text('APPROVED BY')),
                                         DataColumn(label: Text('STATUS')),
                                         DataColumn(label: Text('ACTION')),
                                       ],
@@ -301,6 +304,7 @@ class _ContributionRequestsScreenState
                                                 ),
                                               ),
                                             ),
+                                            DataCell(Text(req.reviewedBy ?? '-')),
                                             DataCell(
                                               StatusBadge(status: req.status),
                                             ),
@@ -407,13 +411,13 @@ class _ContributionRequestsScreenState
                                                         ),
                                                       ],
                                                     )
-                                                  : const Text(
-                                                      '-',
-                                                      style: TextStyle(
-                                                        color:
-                                                            AppColors.textMuted,
-                                                      ),
-                                                    ),
+                                                   : const Text(
+                                                       '-',
+                                                       style: TextStyle(
+                                                         color:
+                                                             AppColors.textMuted,
+                                                       ),
+                                                     ),
                                             ),
                                           ],
                                         );

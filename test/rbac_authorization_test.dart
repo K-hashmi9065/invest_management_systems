@@ -47,9 +47,7 @@ void main() {
       expect(AuthorizationService.canAccessRoute(RoutePaths.members, adminUser), isTrue);
       expect(AuthorizationService.canAccessRoute(RoutePaths.contributions, adminUser), isTrue);
       expect(AuthorizationService.canAccessRoute(RoutePaths.auditLogs, adminUser), isTrue);
-
-      // DENIED routes for ADMIN
-      expect(AuthorizationService.canAccessRoute(RoutePaths.settings, adminUser), isFalse);
+      expect(AuthorizationService.canAccessRoute(RoutePaths.settings, adminUser), isTrue);
     });
 
     test('SUPER_ADMIN full route access', () {

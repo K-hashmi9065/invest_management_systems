@@ -8,6 +8,8 @@ class WithdrawalModel {
   final String? approvedBy;
   final String? approvedAt;
   final String? remarks;
+  final String? approverName;
+  final String? approverRole;
 
   WithdrawalModel({
     required this.id,
@@ -19,6 +21,8 @@ class WithdrawalModel {
     this.approvedBy,
     this.approvedAt,
     this.remarks,
+    this.approverName,
+    this.approverRole,
   });
 
   factory WithdrawalModel.fromMap(Map<String, dynamic> map, {String memberName = ''}) {
@@ -32,6 +36,8 @@ class WithdrawalModel {
       approvedBy: map['approved_by'] as String?,
       approvedAt: map['approved_at'] as String?,
       remarks: map['remarks'] as String?,
+      approverName: map['approver_name'] as String?,
+      approverRole: map['approver_role'] as String?,
     );
   }
 }

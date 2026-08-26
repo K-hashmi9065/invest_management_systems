@@ -140,11 +140,11 @@ void main() {
       expect(result, equals(RoutePaths.dashboard));
     });
 
-    test('ADMIN navigating to /settings → redirected to /dashboard', () async {
+    test('ADMIN navigating to /settings → allowed (redirect returns null)', () async {
       final (container, router) = _buildRouter(currentUser: adminUser);
       addTearDown(container.dispose);
       final result = await router.redirect(container, RoutePaths.settings);
-      expect(result, equals(RoutePaths.dashboard));
+      expect(result, isNull);
     });
 
     test('SUPER_ADMIN navigating to /settings → allowed (redirect returns null)',

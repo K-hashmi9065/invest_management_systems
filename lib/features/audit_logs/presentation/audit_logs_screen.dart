@@ -8,6 +8,7 @@ import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/app_sidebar.dart';
 import '../../../core/widgets/app_top_bar.dart';
 import '../../../core/widgets/async_value_widget.dart';
+import '../../../core/widgets/horizontal_scrollable_table.dart';
 
 class AuditLogsScreen extends ConsumerWidget {
   const AuditLogsScreen({super.key});
@@ -71,8 +72,7 @@ class AuditLogsScreen extends ConsumerWidget {
 
                               return AppCard(
                                 padding: EdgeInsets.zero,
-                                child: SingleChildScrollView(
-                                  scrollDirection: Axis.horizontal,
+                                child: HorizontalScrollableTable(
                                   child: SingleChildScrollView(
                                     child: DataTable(
                                     columns: const [

@@ -13,6 +13,7 @@ import '../../../core/widgets/app_text_field.dart';
 import '../../../core/widgets/app_top_bar.dart';
 import '../../../core/widgets/async_value_widget.dart';
 import '../../../core/widgets/status_badge.dart';
+import '../../../core/widgets/horizontal_scrollable_table.dart';
 
 final deviceLockStateProvider = StateProvider<bool>(
   (ref) => DeviceLockService.config.enableDeviceLock,
@@ -631,8 +632,7 @@ class SettingsScreen extends ConsumerWidget {
                             data: (users) {
                               return AppCard(
                                 padding: EdgeInsets.zero,
-                                child: SingleChildScrollView(
-                                  scrollDirection: Axis.horizontal,
+                                child: HorizontalScrollableTable(
                                   child: SingleChildScrollView(
                                     child: DataTable(
                                       columns: const [
@@ -669,81 +669,83 @@ class SettingsScreen extends ConsumerWidget {
                                               ),
                                             ),
                                             DataCell(
-                                              Row(
-                                                mainAxisSize: MainAxisSize.min,
-                                                children: [
-                                                  OutlinedButton.icon(
-                                                    icon: const Icon(
-                                                      Icons.key,
-                                                      size: 14,
-                                                    ),
-                                                    label: const Text(
-                                                      'Reset Pass',
-                                                    ),
-                                                    style: OutlinedButton.styleFrom(
-                                                      padding:
-                                                          const EdgeInsets.symmetric(
-                                                            horizontal: 8,
-                                                            vertical: 4,
+                                              (!isSuperAdmin && u.role == AppConstants.roleSuperAdmin)
+                                                  ? const Text('—')
+                                                  : Row(
+                                                      mainAxisSize: MainAxisSize.min,
+                                                      children: [
+                                                        OutlinedButton.icon(
+                                                          icon: const Icon(
+                                                            Icons.key,
+                                                            size: 14,
                                                           ),
-                                                    ),
-                                                    onPressed: () =>
-                                                        _showResetUserPasswordDialog(
-                                                          context,
-                                                          ref,
-                                                          u.id,
-                                                          u.username,
-                                                          user.username,
+                                                          label: const Text(
+                                                            'Reset Pass',
+                                                          ),
+                                                          style: OutlinedButton.styleFrom(
+                                                            padding:
+                                                                const EdgeInsets.symmetric(
+                                                                  horizontal: 8,
+                                                                  vertical: 4,
+                                                                ),
+                                                          ),
+                                                          onPressed: () =>
+                                                              _showResetUserPasswordDialog(
+                                                                context,
+                                                                ref,
+                                                                u.id,
+                                                                u.username,
+                                                                user.username,
+                                                              ),
                                                         ),
-                                                  ),
-                                                  if (isSuperAdmin &&
-                                                      !isSelf) ...[
-                                                    const SizedBox(width: 6),
-                                                    OutlinedButton.icon(
-                                                      icon: const Icon(
-                                                        Icons
-                                                            .admin_panel_settings,
-                                                        size: 14,
-                                                      ),
-                                                      label: const Text('Role'),
-                                                      style: OutlinedButton.styleFrom(
-                                                        padding:
-                                                            const EdgeInsets.symmetric(
-                                                              horizontal: 8,
-                                                              vertical: 4,
+                                                        if (isSuperAdmin &&
+                                                            !isSelf) ...[
+                                                          const SizedBox(width: 6),
+                                                          OutlinedButton.icon(
+                                                            icon: const Icon(
+                                                              Icons
+                                                                  .admin_panel_settings,
+                                                              size: 14,
                                                             ),
-                                                      ),
-                                                      onPressed: () =>
-                                                          _showChangeRoleDialog(
-                                                            context,
-                                                            ref,
-                                                            u.id,
-                                                            u.username,
-                                                            u.role,
-                                                            user.username,
+                                                            label: const Text('Role'),
+                                                            style: OutlinedButton.styleFrom(
+                                                              padding:
+                                                                  const EdgeInsets.symmetric(
+                                                                    horizontal: 8,
+                                                                    vertical: 4,
+                                                                  ),
+                                                            ),
+                                                            onPressed: () =>
+                                                                _showChangeRoleDialog(
+                                                                  context,
+                                                                  ref,
+                                                                  u.id,
+                                                                  u.username,
+                                                                  u.role,
+                                                                  user.username,
+                                                                ),
                                                           ),
-                                                    ),
-                                                    const SizedBox(width: 6),
-                                                    IconButton(
-                                                      icon: const Icon(
-                                                        Icons.delete_outline,
-                                                        size: 16,
-                                                        color: AppColors.danger,
-                                                      ),
-                                                      tooltip:
-                                                          'Delete User Account',
-                                                      onPressed: () =>
-                                                          _showDeleteUserDialog(
-                                                            context,
-                                                            ref,
-                                                            u.id,
-                                                            u.username,
-                                                            user.username,
+                                                          const SizedBox(width: 6),
+                                                          IconButton(
+                                                            icon: const Icon(
+                                                              Icons.delete_outline,
+                                                              size: 16,
+                                                              color: AppColors.danger,
+                                                            ),
+                                                            tooltip:
+                                                                'Delete User Account',
+                                                            onPressed: () =>
+                                                                _showDeleteUserDialog(
+                                                                  context,
+                                                                  ref,
+                                                                  u.id,
+                                                                  u.username,
+                                                                  user.username,
+                                                                ),
                                                           ),
+                                                        ],
+                                                      ],
                                                     ),
-                                                  ],
-                                                ],
-                                              ),
                                             ),
                                           ],
                                         );
