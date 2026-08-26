@@ -99,14 +99,68 @@ class DashboardScreen extends ConsumerWidget {
   ) {
     final MemberModel? member = members
         .where((m) => m.id == user.memberId)
-        .firstOrNull ??
-        (members.isNotEmpty ? members.first : null);
+        .firstOrNull;
 
-    final myContribPaise = member?.totalContributionPaise ?? 0;
-    final myPct = member?.contributionPercentage ?? 0.0;
-    final mySharePaise = member?.investmentSharePaise ?? 0;
-    final myProfitPaise = member?.allocatedProfitPaise ?? 0;
-    final myAvailablePaise = member?.availableBalancePaise ?? 0;
+    if (member == null) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Personal Portfolio Summary',
+            style: TextStyle(
+              color: AppColors.textPrimary,
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 16),
+          AppCard(
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.warning_amber_rounded,
+                    color: AppColors.warning,
+                    size: 28,
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'No Linked Member Profile',
+                          style: TextStyle(
+                            color: AppColors.textPrimary,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        const Text(
+                          'Your user account is not linked to any member profile in the system. Please ask an Administrator or Super Admin to link this account in settings.',
+                          style: TextStyle(
+                            color: AppColors.textSecondary,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+
+    final myContribPaise = member.totalContributionPaise;
+    final myPct = member.contributionPercentage;
+    final mySharePaise = member.investmentSharePaise;
+    final myProfitPaise = member.allocatedProfitPaise;
+    final myAvailablePaise = member.availableBalancePaise;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

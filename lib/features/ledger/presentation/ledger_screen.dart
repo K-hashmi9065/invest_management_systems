@@ -121,14 +121,14 @@ class LedgerScreen extends ConsumerWidget {
                   const SizedBox(height: 12),
                   AppTextField(
                     label: 'Amount (₹)',
-                    hint: 'e.g. 5000',
-                    keyboardType: TextInputType.number,
+                    hint: 'e.g. 5000 or -5000',
+                    keyboardType: const TextInputType.numberWithOptions(signed: true, decimal: true),
                     controller: amountCtrl,
                     validator: (v) {
                       if (v == null || v.isEmpty) return 'Amount required';
                       final parsed = double.tryParse(v);
-                      if (parsed == null || parsed <= 0){
-                        return ('Invalid amount');
+                      if (parsed == null || parsed == 0){
+                        return 'Invalid amount';
                       }
                       return null;
                     },
@@ -336,13 +336,23 @@ class LedgerScreen extends ConsumerWidget {
                                         DataColumn(label: Text('CREATED BY')),
                                       ],
                                       rows: filtered.map((t) {
-                                        final isDebit =
-                                            t.transactionType ==
-                                                AppConstants.txWithdrawal ||
-                                            t.transactionType ==
-                                                AppConstants.txInvestment ||
-                                            t.transactionType ==
-                                                AppConstants.txLoss;
+                                        final String sign;
+                                        final Color textColor;
+                                        final int absAmount = t.amountPaise.abs();
+                                        if (t.transactionType == AppConstants.txWithdrawal ||
+                                            t.transactionType == AppConstants.txInvestment ||
+                                            t.transactionType == AppConstants.txLoss ||
+                                            t.transactionType == 'REFUND') {
+                                          sign = '-';
+                                          textColor = AppColors.danger;
+                                        } else if (t.transactionType == AppConstants.txAdjustment) {
+                                          final isNegative = t.amountPaise < 0;
+                                          sign = isNegative ? '-' : '+';
+                                          textColor = isNegative ? AppColors.danger : AppColors.positive;
+                                        } else {
+                                          sign = '+';
+                                          textColor = AppColors.positive;
+                                        }
 
                                         return DataRow(
                                           cells: [
@@ -378,11 +388,9 @@ class LedgerScreen extends ConsumerWidget {
                                             ),
                                             DataCell(
                                               Text(
-                                                '${isDebit ? "-" : "+"}${CurrencyFormatter.formatPaise(t.amountPaise)}',
+                                                '$sign${CurrencyFormatter.formatPaise(absAmount)}',
                                                 style: TextStyle(
-                                                  color: isDebit
-                                                      ? AppColors.danger
-                                                      : AppColors.positive,
+                                                  color: textColor,
                                                   fontWeight: FontWeight.bold,
                                                 ),
                                               ),

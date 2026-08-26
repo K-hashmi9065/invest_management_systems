@@ -1,3 +1,6 @@
+import 'dart:io';
+import 'package:path/path.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart';
 import '../../features/auth/domain/user_model.dart';
 import '../../features/members/domain/member_model.dart';
@@ -20,6 +23,7 @@ import 'database_helper.dart';
 class GroupFinancialSummary {
   final int totalApprovedContributionsPaise;
   final int totalInvestedPaise;
+  final int totalActiveInvestedPaise;
   final int totalRealizedReturnsPaise;
   final int totalApprovedWithdrawalsPaise;
   final int totalDistributedProfitPaise;
@@ -28,6 +32,7 @@ class GroupFinancialSummary {
   GroupFinancialSummary({
     required this.totalApprovedContributionsPaise,
     required this.totalInvestedPaise,
+    required this.totalActiveInvestedPaise,
     required this.totalRealizedReturnsPaise,
     required this.totalApprovedWithdrawalsPaise,
     required this.totalDistributedProfitPaise,
@@ -196,6 +201,7 @@ class AppRepository {
   }
 
   // MEMBERS & CALCULATIONS (Optimized Single Aggregated Query)
+  // MEMBERS & CALCULATIONS (Optimized Single Aggregated Query)
   Future<List<MemberModel>> getMembers() async {
     final db = await _dbHelper.database;
     final summary = await getGroupFinancialSummary();
@@ -205,7 +211,9 @@ class AppRepository {
         m.*,
         COALESCE(c.total_contrib, 0) AS total_contribution_paise,
         COALESCE(pd.total_profit, 0) AS allocated_profit_paise,
-        COALESCE(w.total_withdraw, 0) AS total_withdrawal_paise
+        COALESCE(w.total_withdraw, 0) AS total_withdrawal_paise,
+        COALESCE(adj.total_adj, 0) AS total_adjustment_paise,
+        COALESCE(ref.total_ref, 0) AS total_refund_paise
       FROM members m
       LEFT JOIN (
         SELECT member_id, SUM(amount_paise) AS total_contrib
@@ -224,8 +232,29 @@ class AppRepository {
         WHERE status = 'APPROVED'
         GROUP BY member_id
       ) w ON m.id = w.member_id
+      LEFT JOIN (
+        SELECT member_id, SUM(amount_paise) AS total_adj
+        FROM transactions
+        WHERE transaction_type = 'ADJUSTMENT'
+        GROUP BY member_id
+      ) adj ON m.id = adj.member_id
+      LEFT JOIN (
+        SELECT member_id, SUM(amount_paise) AS total_ref
+        FROM transactions
+        WHERE transaction_type = 'REFUND'
+        GROUP BY member_id
+      ) ref ON m.id = ref.member_id
       ORDER BY m.id ASC
     ''');
+
+    int totalGroupEffectiveContrib = 0;
+    for (final map in memberMaps) {
+      final tc = (map['total_contribution_paise'] as num?)?.toInt() ?? 0;
+      final ta = (map['total_adjustment_paise'] as num?)?.toInt() ?? 0;
+      final tr = (map['total_refund_paise'] as num?)?.toInt() ?? 0;
+      final effective = tc + ta - tr;
+      totalGroupEffectiveContrib += effective < 0 ? 0 : effective;
+    }
 
     final List<MemberModel> members = [];
 
@@ -236,22 +265,29 @@ class AppRepository {
           (map['allocated_profit_paise'] as num?)?.toInt() ?? 0;
       final totalWithdrawalPaise =
           (map['total_withdrawal_paise'] as num?)?.toInt() ?? 0;
+      final totalAdjustmentPaise =
+          (map['total_adjustment_paise'] as num?)?.toInt() ?? 0;
+      final totalRefundPaise =
+          (map['total_refund_paise'] as num?)?.toInt() ?? 0;
 
-      // Calculate Contribution %
+      final memberEffectiveContrib = totalContribPaise + totalAdjustmentPaise - totalRefundPaise;
+      final clampedEffective = memberEffectiveContrib < 0 ? 0 : memberEffectiveContrib;
+
+      // Calculate Contribution % based on effective contributions
       final double contribPct = ContributionCalculator.percentageOf(
-        totalContribPaise,
-        summary.totalApprovedContributionsPaise,
+        clampedEffective,
+        totalGroupEffectiveContrib,
       );
 
-      // Calculate Member's Share of Investments
+      // Calculate Member's Share of Active Investments
       final int investmentSharePaise = ProfitCalculator.memberShare(
-        summary.totalInvestedPaise,
+        summary.totalActiveInvestedPaise,
         contribPct,
       );
 
-      // Calculate Available Balance
+      // Calculate Available Balance including adjustments and refunds
       final availableBalancePaise =
-          totalContribPaise + allocatedProfitPaise - totalWithdrawalPaise;
+          totalContribPaise + allocatedProfitPaise - totalWithdrawalPaise + totalAdjustmentPaise - totalRefundPaise;
 
       members.add(
         MemberModel.fromMap(
@@ -371,11 +407,17 @@ class AppRepository {
     );
     final totalContribPaise = (contribRes.first['total'] as int?) ?? 0;
 
-    // Total Invested
+    // Total Invested (Historical)
     final investRes = await db.rawQuery(
       'SELECT SUM(amount_paise) as total FROM investments',
     );
     final totalInvestedPaise = (investRes.first['total'] as int?) ?? 0;
+
+    // Active Investments (Currently locked up capital)
+    final activeInvestRes = await db.rawQuery(
+      "SELECT SUM(amount_paise) as total FROM investments WHERE status = 'ACTIVE'",
+    );
+    final totalActiveInvestedPaise = (activeInvestRes.first['total'] as int?) ?? 0;
 
     // Realized Returns
     final returnRes = await db.rawQuery(
@@ -395,16 +437,31 @@ class AppRepository {
     );
     final totalProfitPaise = (profitRes.first['total'] as int?) ?? 0;
 
-    // Available Group Balance = Approved Contributions - Invested - Withdrawals + Returns
+    // Group Adjustments from transactions table
+    final adjustRes = await db.rawQuery(
+      "SELECT SUM(amount_paise) as total FROM transactions WHERE transaction_type = 'ADJUSTMENT'",
+    );
+    final totalAdjustPaise = (adjustRes.first['total'] as int?) ?? 0;
+
+    // Group Refunds from transactions table
+    final refundRes = await db.rawQuery(
+      "SELECT SUM(amount_paise) as total FROM transactions WHERE transaction_type = 'REFUND'",
+    );
+    final totalRefundPaise = (refundRes.first['total'] as int?) ?? 0;
+
+    // Available Group Balance = Approved Contributions - Active Invested - Withdrawals + Returns + Adjustments - Refunds
     final availablePaise =
         totalContribPaise -
-        totalInvestedPaise -
+        totalActiveInvestedPaise -
         totalWithdrawalsPaise +
-        totalReturnsPaise;
+        totalReturnsPaise +
+        totalAdjustPaise -
+        totalRefundPaise;
 
     return GroupFinancialSummary(
       totalApprovedContributionsPaise: totalContribPaise,
       totalInvestedPaise: totalInvestedPaise,
+      totalActiveInvestedPaise: totalActiveInvestedPaise,
       totalRealizedReturnsPaise: totalReturnsPaise,
       totalApprovedWithdrawalsPaise: totalWithdrawalsPaise,
       totalDistributedProfitPaise: totalProfitPaise,
@@ -950,7 +1007,19 @@ class AppRepository {
         );
         final priorWithdraw = (priorWithdrawRes.first['total'] as int?) ?? 0;
 
-        final currentBalance = totalContrib + totalProfit - priorWithdraw;
+        final adjRes = await txn.rawQuery(
+          "SELECT SUM(amount_paise) as total FROM transactions WHERE member_id = ? AND transaction_type = 'ADJUSTMENT'",
+          [memberId],
+        );
+        final totalAdj = (adjRes.first['total'] as int?) ?? 0;
+
+        final refRes = await txn.rawQuery(
+          "SELECT SUM(amount_paise) as total FROM transactions WHERE member_id = ? AND transaction_type = 'REFUND'",
+          [memberId],
+        );
+        final totalRef = (refRes.first['total'] as int?) ?? 0;
+
+        final currentBalance = totalContrib + totalProfit - priorWithdraw + totalAdj - totalRef;
         if (currentBalance < amountPaise) {
           throw FinancialFailure(
             'Cannot approve withdrawal of ₹${amountPaise / 100}. Member available balance is only ₹${currentBalance / 100}.',
@@ -1133,6 +1202,52 @@ class AppRepository {
       );
     } else {
       await db.update('notifications', {'is_read': 1});
+    }
+  }
+
+  Future<String> exportBackup({required String actionBy}) async {
+    try {
+      final db = await _dbHelper.database;
+      final dbPath = db.path;
+      final dbFile = File(dbPath);
+      if (!await dbFile.exists()) {
+        throw const DatabaseFailure('Database file does not exist.');
+      }
+
+      String backupDir;
+      if (Platform.isWindows) {
+        final appData = Platform.environment['PROGRAMDATA'] ?? 'C:\\ProgramData';
+        backupDir = join(appData, 'GroupInvestmentManagement', 'backups');
+      } else {
+        final documentsDirectory = await getApplicationDocumentsDirectory();
+        backupDir = join(documentsDirectory.path, 'backups');
+      }
+
+      final dir = Directory(backupDir);
+      if (!dir.existsSync()) {
+        dir.createSync(recursive: true);
+      }
+
+      final timestamp = DateTime.now()
+          .toIso8601String()
+          .replaceAll(':', '-')
+          .replaceAll('.', '-');
+      final backupPath = join(backupDir, 'group_investment_backup_$timestamp.db');
+      await dbFile.copy(backupPath);
+
+      await logAudit(
+        username: actionBy,
+        action: 'EXPORT_BACKUP',
+        details: 'Exported database backup to: $backupPath',
+      );
+
+      return backupPath;
+    } catch (e) {
+      throw DatabaseFailure(
+        'Failed to export database backup.',
+        technicalDetails: e.toString(),
+        originalException: e,
+      );
     }
   }
 }

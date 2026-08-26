@@ -29,10 +29,20 @@ class _WithdrawalsScreenState extends ConsumerState<WithdrawalsScreen> {
     final members = membersAsync.value ?? [];
 
     final member =
-        members.where((m) => m.id == user?.memberId).firstOrNull ??
-        (members.isNotEmpty ? members.first : null);
+        members.where((m) => m.id == user?.memberId).firstOrNull;
 
-    final maxWithdrawablePaise = member?.availableBalancePaise ?? 0;
+    if (member == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Your account is not linked to a member profile. Please contact an administrator.',
+          ),
+        ),
+      );
+      return;
+    }
+
+    final maxWithdrawablePaise = member.availableBalancePaise;
     final amountCtrl = TextEditingController();
     final remarksCtrl = TextEditingController();
     final formKey = GlobalKey<FormState>();
@@ -128,7 +138,7 @@ class _WithdrawalsScreenState extends ConsumerState<WithdrawalsScreen> {
                   final repo = ref.read(appRepositoryProvider);
 
                   await repo.submitWithdrawalRequest(
-                    memberId: member?.id ?? 1,
+                    memberId: member.id,
                     amountPaise: paise,
                     remarks: remarksCtrl.text.isNotEmpty
                         ? remarksCtrl.text

@@ -800,7 +800,6 @@ class SettingsScreen extends ConsumerWidget {
                                       ? [
                                           if (currentGuid.isNotEmpty)
                                             currentGuid,
-                                          '*',
                                         ]
                                       : ['*'];
                                   DeviceLockService.updateConfig(
@@ -885,14 +884,30 @@ class SettingsScreen extends ConsumerWidget {
                                 text: 'Export Backup',
                                 icon: Icons.download,
                                 isSecondary: true,
-                                onPressed: () {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text(
-                                        'Database snapshot backup created successfully in ProgramData.',
-                                      ),
-                                    ),
-                                  );
+                                onPressed: () async {
+                                  try {
+                                    final path = await ref
+                                        .read(appRepositoryProvider)
+                                        .exportBackup(actionBy: user.username);
+                                    if (context.mounted) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                            'Database backup exported successfully to: $path',
+                                          ),
+                                        ),
+                                      );
+                                    }
+                                  } catch (e, st) {
+                                    final failure = FailureMapper.map(e, st);
+                                    if (context.mounted) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(
+                                          content: Text(failure.userMessage),
+                                        ),
+                                      );
+                                    }
+                                  }
                                 },
                               ),
                             ],

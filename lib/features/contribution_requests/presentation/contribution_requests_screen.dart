@@ -27,6 +27,17 @@ class _ContributionRequestsScreenState
     extends ConsumerState<ContributionRequestsScreen> {
   void _showRaiseRequestDialog(BuildContext context) {
     final user = ref.read(currentUserProvider);
+    if (user == null || user.memberId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Your account is not linked to a member profile. Cannot raise request.',
+          ),
+        ),
+      );
+      return;
+    }
+
     final amountCtrl = TextEditingController();
     final remarksCtrl = TextEditingController();
     String paymentMode = 'Bank Transfer';
@@ -122,13 +133,13 @@ class _ContributionRequestsScreenState
                     final repo = ref.read(appRepositoryProvider);
 
                     await repo.submitContributionRequest(
-                      memberId: user?.memberId ?? 1,
+                      memberId: user.memberId!,
                       amountPaise: paise,
                       paymentMode: paymentMode,
                       remarks: remarksCtrl.text.isNotEmpty
                           ? remarksCtrl.text
                           : null,
-                      actionBy: user?.username ?? 'Member',
+                      actionBy: user.username,
                     );
 
                     refreshAllFinancialProviders(ref);
