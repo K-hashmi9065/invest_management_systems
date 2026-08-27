@@ -1,0 +1,66 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0B1A2E"/>
+      <stop offset="55%" stop-color="#0F2540"/>
+      <stop offset="100%" stop-color="#132D52"/>
+    </linearGradient>
+    <linearGradient id="gold" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#B8873A"/>
+      <stop offset="45%" stop-color="#E9C77B"/>
+      <stop offset="100%" stop-color="#F5E1B0"/>
+    </linearGradient>
+    <linearGradient id="goldSoft" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#F5E1B0" stop-opacity="0.95"/>
+      <stop offset="100%" stop-color="#C89A4B" stop-opacity="0.95"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="50%" cy="38%" r="65%">
+      <stop offset="0%" stop-color="#1E4A82" stop-opacity="0.55"/>
+      <stop offset="100%" stop-color="#1E4A82" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="softShadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="10" stdDeviation="14" flood-color="#000000" flood-opacity="0.35"/>
+    </filter>
+    <clipPath id="squircle">
+      <rect x="0" y="0" width="1024" height="1024" rx="228" ry="228"/>
+    </clipPath>
+  </defs>
+
+  <g clip-path="url(#squircle)">
+    <rect width="1024" height="1024" fill="url(#bg)"/>
+    <rect width="1024" height="1024" fill="url(#glow)"/>
+
+    <!-- fine concentric rings, subtle premium texture -->
+    <circle cx="512" cy="500" r="330" fill="none" stroke="#3A5A82" stroke-opacity="0.18" stroke-width="1.5"/>
+    <circle cx="512" cy="500" r="380" fill="none" stroke="#3A5A82" stroke-opacity="0.10" stroke-width="1.5"/>
+
+    <!-- hairline border for crafted edge -->
+    <rect x="10" y="10" width="1004" height="1004" rx="220" ry="220" fill="none" stroke="#3D6294" stroke-opacity="0.35" stroke-width="2"/>
+
+    <!-- ascending bars -->
+    <g filter="url(#softShadow)">
+      <rect x="336" y="560" width="72" height="160" rx="14" fill="url(#gold)"/>
+      <rect x="440" y="500" width="72" height="220" rx="14" fill="url(#gold)"/>
+      <rect x="544" y="420" width="72" height="300" rx="14" fill="url(#gold)"/>
+      <rect x="648" y="330" width="72" height="390" rx="14" fill="url(#gold)"/>
+    </g>
+
+    <!-- ascending trend line + arrowhead, layered above bars -->
+    <g filter="url(#softShadow)">
+      <path d="M 320 640 L 460 540 L 560 590 L 700 300"
+            fill="none" stroke="url(#goldSoft)" stroke-width="18"
+            stroke-linecap="round" stroke-linejoin="round"/>
+      <!-- nodes -->
+      <circle cx="320" cy="640" r="12" fill="#F5E1B0"/>
+      <circle cx="460" cy="540" r="12" fill="#F5E1B0"/>
+      <circle cx="560" cy="590" r="12" fill="#F5E1B0"/>
+      <!-- arrowhead -->
+      <path d="M 700 300 L 648 316 L 686 356 Z" fill="url(#goldSoft)"/>
+    </g>
+
+    <!-- tagline -->
+    <text x="512" y="822" text-anchor="middle"
+          font-family="Liberation Serif" font-weight="700" font-size="52"
+          letter-spacing="4" fill="url(#gold)">INVEST &#8226; MANAGE &#8226; GROW</text>
+  </g>
+</svg>

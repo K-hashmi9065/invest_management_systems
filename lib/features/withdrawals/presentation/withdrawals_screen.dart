@@ -16,6 +16,8 @@ import '../../../core/widgets/async_value_widget.dart';
 import '../../../core/widgets/horizontal_scrollable_table.dart';
 import '../../../core/widgets/status_badge.dart';
 
+import '../../members/domain/member_model.dart';
+
 class WithdrawalsScreen extends ConsumerStatefulWidget {
   const WithdrawalsScreen({super.key});
 
@@ -29,139 +31,188 @@ class _WithdrawalsScreenState extends ConsumerState<WithdrawalsScreen> {
     final membersAsync = ref.read(membersProvider);
     final members = membersAsync.value ?? [];
 
-    final member =
-        members.where((m) => m.id == user?.memberId).firstOrNull;
-
-    if (member == null) {
+    if (members.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Your account is not linked to a member profile. Please contact an administrator.',
-          ),
-        ),
+        const SnackBar(content: Text('No members available.')),
       );
       return;
     }
 
-    final maxWithdrawablePaise = member.availableBalancePaise;
+    final isAdmin =
+        user?.role == AppConstants.roleAdmin ||
+        user?.role == AppConstants.roleSuperAdmin;
+
+    int selectedMemberId = (user?.memberId != null &&
+            members.any((m) => m.id == user!.memberId))
+        ? user!.memberId!
+        : members.first.id;
+
+    MemberModel selectedMember = members.firstWhere(
+      (m) => m.id == selectedMemberId,
+      orElse: () => members.first,
+    );
+
     final amountCtrl = TextEditingController();
     final remarksCtrl = TextEditingController();
     final formKey = GlobalKey<FormState>();
 
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.surfaceCard,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-          side: const BorderSide(color: AppColors.border, width: 0.5),
-        ),
-        title: const Text(
-          'Submit Withdrawal Request',
-          style: TextStyle(color: AppColors.textPrimary, fontSize: 16),
-        ),
-        content: SizedBox(
-          width: 440,
-          child: Form(
-            key: formKey,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: AppColors.surfaceElevated,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: AppColors.border, width: 0.5),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) {
+          final maxWithdrawablePaise = selectedMember.availableBalancePaise;
+
+          return AlertDialog(
+            backgroundColor: AppColors.surfaceCard,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+              side: const BorderSide(color: AppColors.border, width: 0.5),
+            ),
+            title: Text(
+              isAdmin
+                  ? 'Submit Withdrawal Request (Admin/Member)'
+                  : 'Submit Withdrawal Request',
+              style: const TextStyle(color: AppColors.textPrimary, fontSize: 16),
+            ),
+            content: SizedBox(
+              width: 440,
+              child: Form(
+                key: formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (isAdmin) ...[
                       const Text(
-                        'Available Balance:',
+                        'Select Member Profile',
                         style: TextStyle(
-                          color: AppColors.textMuted,
+                          color: AppColors.textSecondary,
                           fontSize: 13,
+                          fontWeight: FontWeight.w500,
                         ),
                       ),
-                      Text(
-                        CurrencyFormatter.formatPaise(maxWithdrawablePaise),
+                      const SizedBox(height: 6),
+                      DropdownButtonFormField<int>(
+                        initialValue: selectedMemberId,
+                        dropdownColor: AppColors.surfaceElevated,
                         style: const TextStyle(
-                          color: AppColors.positive,
-                          fontWeight: FontWeight.bold,
+                          color: AppColors.textPrimary,
                           fontSize: 14,
                         ),
+                        items: members.map((m) {
+                          return DropdownMenuItem<int>(
+                            value: m.id,
+                            child: Text('${m.name} (#${m.id})'),
+                          );
+                        }).toList(),
+                        onChanged: (val) {
+                          if (val != null) {
+                            setDialogState(() {
+                              selectedMemberId = val;
+                              selectedMember =
+                                  members.firstWhere((m) => m.id == val);
+                            });
+                          }
+                        },
                       ),
+                      const SizedBox(height: 12),
                     ],
-                  ),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: AppColors.surfaceElevated,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: AppColors.border, width: 0.5),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text(
+                            'Available Balance:',
+                            style: TextStyle(
+                              color: AppColors.textMuted,
+                              fontSize: 13,
+                            ),
+                          ),
+                          Text(
+                            CurrencyFormatter.formatPaise(maxWithdrawablePaise),
+                            style: const TextStyle(
+                              color: AppColors.positive,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    AppTextField(
+                      label: 'Requested Withdrawal Amount (₹)',
+                      hint: 'e.g. 10000',
+                      keyboardType: TextInputType.number,
+                      controller: amountCtrl,
+                      validator: (v) {
+                        if (v == null || v.isEmpty) return 'Amount required';
+                        final parsed = double.tryParse(v);
+                        if (parsed == null || parsed <= 0) return 'Invalid amount';
+                        final requestedPaise = CurrencyFormatter.rupeesToPaise(
+                          parsed,
+                        );
+                        if (requestedPaise > maxWithdrawablePaise) {
+                          return 'Exceeds available balance (${CurrencyFormatter.formatPaise(maxWithdrawablePaise)})';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    AppTextField(
+                      label: 'Reason / Remarks',
+                      hint: 'Optional withdrawal reason',
+                      controller: remarksCtrl,
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 16),
-                AppTextField(
-                  label: 'Requested Withdrawal Amount (₹)',
-                  hint: 'e.g. 10000',
-                  keyboardType: TextInputType.number,
-                  controller: amountCtrl,
-                  validator: (v) {
-                    if (v == null || v.isEmpty) return 'Amount required';
-                    final parsed = double.tryParse(v);
-                    if (parsed == null || parsed <= 0) return 'Invalid amount';
-                    final requestedPaise = CurrencyFormatter.rupeesToPaise(
-                      parsed,
-                    );
-                    if (requestedPaise > maxWithdrawablePaise) {
-                      return 'Exceeds available balance (${CurrencyFormatter.formatPaise(maxWithdrawablePaise)})';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 12),
-                AppTextField(
-                  label: 'Reason / Remarks',
-                  hint: 'Optional withdrawal reason',
-                  controller: remarksCtrl,
-                ),
-              ],
+              ),
             ),
-          ),
-        ),
-        actions: [
-          OutlinedButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              if (formKey.currentState!.validate()) {
-                try {
-                  final rupees = double.parse(amountCtrl.text);
-                  final paise = CurrencyFormatter.rupeesToPaise(rupees);
-                  final repo = ref.read(appRepositoryProvider);
+            actions: [
+              OutlinedButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: () async {
+                  if (formKey.currentState!.validate()) {
+                    try {
+                      final rupees = double.parse(amountCtrl.text);
+                      final paise = CurrencyFormatter.rupeesToPaise(rupees);
+                      final repo = ref.read(appRepositoryProvider);
 
-                  await repo.submitWithdrawalRequest(
-                    memberId: member.id,
-                    amountPaise: paise,
-                    remarks: remarksCtrl.text.isNotEmpty
-                        ? remarksCtrl.text
-                        : null,
-                    actionBy: user?.username ?? 'Member',
-                  );
+                      await repo.submitWithdrawalRequest(
+                        memberId: selectedMember.id,
+                        amountPaise: paise,
+                        remarks: remarksCtrl.text.isNotEmpty
+                            ? remarksCtrl.text
+                            : null,
+                        actionBy: user?.username ?? 'Admin',
+                      );
 
-                  refreshAllFinancialProviders(ref);
-                  if (ctx.mounted) Navigator.pop(ctx);
-                } catch (e, st) {
-                  final failure = FailureMapper.map(e, st);
-                  if (ctx.mounted) {
-                    ScaffoldMessenger.of(ctx).showSnackBar(
-                      SnackBar(content: Text(failure.userMessage)),
-                    );
+                      refreshAllFinancialProviders(ref);
+                      if (ctx.mounted) Navigator.pop(ctx);
+                    } catch (e, st) {
+                      final failure = FailureMapper.map(e, st);
+                      if (ctx.mounted) {
+                        ScaffoldMessenger.of(ctx).showSnackBar(
+                          SnackBar(content: Text(failure.userMessage)),
+                        );
+                      }
+                    }
                   }
-                }
-              }
-            },
-            child: const Text('Submit Request'),
-          ),
-        ],
+                },
+                child: const Text('Submit Request'),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -174,8 +225,6 @@ class _WithdrawalsScreenState extends ConsumerState<WithdrawalsScreen> {
     if (user == null) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
-
-
 
     final isAdmin =
         user.role == AppConstants.roleAdmin ||
@@ -220,13 +269,12 @@ class _WithdrawalsScreenState extends ConsumerState<WithdrawalsScreen> {
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
-                            if (!isAdmin)
-                              AppButton(
-                                text: 'Request Withdrawal',
-                                icon: Icons.remove_circle_outline,
-                                onPressed: () =>
-                                    _showRequestWithdrawalDialog(context),
-                              ),
+                            AppButton(
+                              text: 'Request Withdrawal',
+                              icon: Icons.remove_circle_outline,
+                              onPressed: () =>
+                                  _showRequestWithdrawalDialog(context),
+                            ),
                           ],
                         ),
                         const SizedBox(height: 20),

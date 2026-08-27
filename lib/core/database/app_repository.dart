@@ -44,6 +44,69 @@ class AppRepository {
   final DatabaseHelper _dbHelper = DatabaseHelper.instance;
 
   // AUTH & USERS
+  Future<void> ensureMemberProfilesForAdmins() async {
+    final db = await _dbHelper.database;
+    final now = DateFormatter.toIso(DateTime.now());
+
+    final unlinkedUsers = await db.rawQuery('''
+      SELECT u.* FROM users u
+      LEFT JOIN members m ON u.member_id = m.id
+      WHERE u.member_id IS NULL OR m.id IS NULL
+    ''');
+
+    for (final u in unlinkedUsers) {
+      final userId = u['id'] as int;
+      final name = u['full_name'] as String;
+      final email = (u['email'] as String?)?.trim().isNotEmpty == true
+          ? (u['email'] as String).trim()
+          : '${u['username']}@system.local';
+      final phone = (u['phone'] as String?)?.trim().isNotEmpty == true
+          ? (u['phone'] as String).trim()
+          : 'N/A';
+
+      final role = u['role'] as String? ?? '';
+      final formattedName =
+          (role == AppConstants.roleSuperAdmin && !name.contains('(SA)'))
+              ? '$name (SA)'
+              : name;
+
+      final memberId = await db.insert('members', {
+        'name': formattedName,
+        'email': email,
+        'phone': phone,
+        'joined_date': (u['created_at'] as String?) ?? now,
+        'status': AppConstants.statusActive,
+      });
+
+      await db.update(
+        'users',
+        {'member_id': memberId},
+        where: 'id = ?',
+        whereArgs: [userId],
+      );
+    }
+
+    final saMembers = await db.rawQuery('''
+      SELECT m.id, m.name
+      FROM members m
+      JOIN users u ON m.id = u.member_id
+      WHERE u.role = ?
+    ''', [AppConstants.roleSuperAdmin]);
+
+    for (final sa in saMembers) {
+      final mId = sa['id'] as int;
+      final mName = sa['name'] as String;
+      if (!mName.contains('(SA)')) {
+        await db.update(
+          'members',
+          {'name': '$mName (SA)'},
+          where: 'id = ?',
+          whereArgs: [mId],
+        );
+      }
+    }
+  }
+
   Future<bool> isFirstTimeSetupNeeded() async {
     final db = await _dbHelper.database;
     final count = Sqflite.firstIntValue(
@@ -57,6 +120,8 @@ class AppRepository {
   Future<UserModel?> login(String identifier, String password) async {
     final db = await _dbHelper.database;
     final cleanId = identifier.trim();
+
+    await ensureMemberProfilesForAdmins();
 
     // Match against username, email, phone in users table OR linked member email/phone
     final maps = await db.rawQuery(
@@ -115,31 +180,51 @@ class AppRepository {
         ? username!.trim()
         : email.trim().toLowerCase();
 
-    final id = await db.insert('users', {
-      'username': effectiveUsername,
-      'password_hash': hash,
-      'salt': salt,
-      'full_name': fullName.trim(),
-      'email': email.trim(),
-      'phone': phone.trim(),
-      'role': AppConstants.roleSuperAdmin,
-      'created_at': now,
+    final saName = fullName.trim().contains('(SA)')
+        ? fullName.trim()
+        : '${fullName.trim()} (SA)';
+
+    int memberId = 0;
+    int userId = 0;
+
+    await db.transaction((txn) async {
+      memberId = await txn.insert('members', {
+        'name': saName,
+        'email': email.trim(),
+        'phone': phone.trim(),
+        'joined_date': now,
+        'status': AppConstants.statusActive,
+      });
+
+      userId = await txn.insert('users', {
+        'username': effectiveUsername,
+        'password_hash': hash,
+        'salt': salt,
+        'full_name': fullName.trim(),
+        'email': email.trim(),
+        'phone': phone.trim(),
+        'role': AppConstants.roleSuperAdmin,
+        'member_id': memberId,
+        'created_at': now,
+      });
     });
 
     await logAudit(
-      userId: id,
+      userId: userId,
       username: effectiveUsername,
       action: 'SYSTEM_SETUP',
-      details: 'Super Admin account created: $effectiveUsername ($fullName)',
+      details:
+          'Super Admin account created: $effectiveUsername ($fullName) with Member profile #$memberId',
     );
 
     return UserModel(
-      id: id,
+      id: userId,
       username: effectiveUsername,
       fullName: fullName.trim(),
       email: email.trim(),
       phone: phone.trim(),
       role: AppConstants.roleSuperAdmin,
+      memberId: memberId,
       createdAt: now,
     );
   }
@@ -170,23 +255,47 @@ class AppRepository {
                         '_',
                       )));
 
-    final id = await db.insert('users', {
-      'username': effectiveUsername,
-      'password_hash': hash,
-      'salt': salt,
-      'full_name': fullName.trim(),
-      'email': email?.trim(),
-      'phone': phone?.trim(),
-      'role': role,
-      'member_id': memberId,
-      'created_at': now,
-    });
+    int? effectiveMemberId = memberId;
+    int id = 0;
 
-    await logAudit(
-      username: actionBy,
-      action: 'CREATE_USER',
-      details: 'User created: $effectiveUsername ($role)',
-    );
+    await db.transaction((txn) async {
+      if (effectiveMemberId == null) {
+        final isSA = role == AppConstants.roleSuperAdmin;
+        final memberName = (isSA && !fullName.trim().contains('(SA)'))
+            ? '${fullName.trim()} (SA)'
+            : fullName.trim();
+
+        effectiveMemberId = await txn.insert('members', {
+          'name': memberName,
+          'email': email?.trim().isNotEmpty == true
+              ? email!.trim()
+              : '$effectiveUsername@system.local',
+          'phone': phone?.trim().isNotEmpty == true ? phone!.trim() : 'N/A',
+          'joined_date': now,
+          'status': AppConstants.statusActive,
+        });
+      }
+
+      id = await txn.insert('users', {
+        'username': effectiveUsername,
+        'password_hash': hash,
+        'salt': salt,
+        'full_name': fullName.trim(),
+        'email': email?.trim(),
+        'phone': phone?.trim(),
+        'role': role,
+        'member_id': effectiveMemberId,
+        'created_at': now,
+      });
+
+      await txn.insert('audit_logs', {
+        'username': actionBy,
+        'action': 'CREATE_USER',
+        'details':
+            'User created: $effectiveUsername ($role) with Member profile #$effectiveMemberId',
+        'timestamp': now,
+      });
+    });
 
     return UserModel(
       id: id,
@@ -195,7 +304,7 @@ class AppRepository {
       email: email?.trim(),
       phone: phone?.trim(),
       role: role,
-      memberId: memberId,
+      memberId: effectiveMemberId,
       createdAt: now,
     );
   }
@@ -203,6 +312,7 @@ class AppRepository {
   // MEMBERS & CALCULATIONS (Optimized Single Aggregated Query)
   // MEMBERS & CALCULATIONS (Optimized Single Aggregated Query)
   Future<List<MemberModel>> getMembers() async {
+    await ensureMemberProfilesForAdmins();
     final db = await _dbHelper.database;
     final summary = await getGroupFinancialSummary();
 
@@ -816,6 +926,7 @@ class AppRepository {
 
   // USER & SECURITY MANAGEMENT
   Future<List<UserModel>> getUsers() async {
+    await ensureMemberProfilesForAdmins();
     final db = await _dbHelper.database;
     final maps = await db.query('users', orderBy: 'id ASC');
     return maps.map((m) => UserModel.fromMap(m)).toList();
