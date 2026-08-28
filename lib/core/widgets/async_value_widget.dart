@@ -9,6 +9,7 @@ class AsyncValueWidget<T> extends StatelessWidget {
   final Widget Function(T data) data;
   final Widget Function(Object error, StackTrace? stackTrace)? errorWidget;
   final Widget Function()? loadingWidget;
+  final VoidCallback? onRetry;
 
   const AsyncValueWidget({
     super.key,
@@ -16,6 +17,7 @@ class AsyncValueWidget<T> extends StatelessWidget {
     required this.data,
     this.errorWidget,
     this.loadingWidget,
+    this.onRetry,
   });
 
   @override
@@ -34,11 +36,15 @@ class AsyncValueWidget<T> extends StatelessWidget {
           return errorWidget!(error, stackTrace);
         }
         final failure = FailureMapper.map(error, stackTrace);
-        return AppErrorDisplay(message: failure.userMessage);
+        return AppErrorDisplay(
+          message: failure.userMessage,
+          onRetry: onRetry,
+        );
       },
     );
   }
 }
+
 
 /// User-friendly error message widget.
 class AppErrorDisplay extends StatelessWidget {

@@ -5,6 +5,7 @@ import '../app/app_providers.dart';
 import '../core/constants/route_names.dart';
 import '../core/security/app_permissions.dart';
 import '../core/security/device_lock_service.dart';
+import '../core/widgets/app_shell.dart';
 import '../features/auth/presentation/device_unauthorized_screen.dart';
 import '../features/auth/presentation/first_time_setup_screen.dart';
 import '../features/auth/presentation/login_screen.dart';
@@ -33,6 +34,10 @@ final routerNotifierProvider = Provider<RouterNotifier>((ref) {
   return RouterNotifier(ref);
 });
 
+/// Cached result of isFirstTimeSetupNeeded so we don't hit the DB on every
+/// route change. Reset to null on logout so re-login rechecks.
+bool? _cachedIsSetupNeeded;
+
 Future<String?> appRedirect({
   required ProviderReader read,
   required BuildContext context,
@@ -46,10 +51,10 @@ Future<String?> appRedirect({
     return null;
   }
 
-  // 2. First-Time Setup Check
+  // 2. First-Time Setup Check (cached after first call)
   final repo = read(appRepositoryProvider);
-  final isSetupNeeded = await repo.isFirstTimeSetupNeeded();
-  if (isSetupNeeded && state.matchedLocation != RoutePaths.setup) {
+  _cachedIsSetupNeeded ??= await repo.isFirstTimeSetupNeeded();
+  if (_cachedIsSetupNeeded! && state.matchedLocation != RoutePaths.setup) {
     return RoutePaths.setup;
   }
 
@@ -63,7 +68,14 @@ Future<String?> appRedirect({
     return RoutePaths.login;
   }
 
+  if (currentUser == null) {
+    // Reset cache on logout so next login rechecks setup status
+    _cachedIsSetupNeeded = null;
+  }
+
   if (currentUser != null && (isLoggingIn || isSettingUp)) {
+    // Once setup is completed and user logs in, mark setup as done
+    _cachedIsSetupNeeded = false;
     return RoutePaths.dashboard;
   }
 
@@ -83,6 +95,8 @@ Future<String?> appRedirect({
   return null;
 }
 
+final _shellNavigatorKey = GlobalKey<NavigatorState>();
+
 final routerProvider = Provider<GoRouter>((ref) {
   final notifier = ref.watch(routerNotifierProvider);
   return GoRouter(
@@ -91,6 +105,7 @@ final routerProvider = Provider<GoRouter>((ref) {
     redirect: (context, state) =>
         appRedirect(read: ref.read, context: context, state: state),
     routes: [
+      // Standalone routes (no shell — no sidebar/topbar)
       GoRoute(
         path: RoutePaths.login,
         name: RouteNames.login,
@@ -106,55 +121,66 @@ final routerProvider = Provider<GoRouter>((ref) {
         name: RouteNames.deviceUnauthorized,
         builder: (context, state) => const DeviceUnauthorizedScreen(),
       ),
-      GoRoute(
-        path: RoutePaths.dashboard,
-        name: RouteNames.dashboard,
-        builder: (context, state) => const DashboardScreen(),
-      ),
-      GoRoute(
-        path: RoutePaths.members,
-        name: RouteNames.members,
-        builder: (context, state) => const MembersScreen(),
-      ),
-      GoRoute(
-        path: RoutePaths.contributions,
-        name: RouteNames.contributions,
-        builder: (context, state) => const ContributionsScreen(),
-      ),
-      GoRoute(
-        path: RoutePaths.contributionRequests,
-        name: RouteNames.contributionRequests,
-        builder: (context, state) => const ContributionRequestsScreen(),
-      ),
-      GoRoute(
-        path: RoutePaths.investments,
-        name: RouteNames.investments,
-        builder: (context, state) => const InvestmentsScreen(),
-      ),
-      GoRoute(
-        path: RoutePaths.profitLoss,
-        name: RouteNames.profitLoss,
-        builder: (context, state) => const ProfitLossScreen(),
-      ),
-      GoRoute(
-        path: RoutePaths.withdrawals,
-        name: RouteNames.withdrawals,
-        builder: (context, state) => const WithdrawalsScreen(),
-      ),
-      GoRoute(
-        path: RoutePaths.ledger,
-        name: RouteNames.ledger,
-        builder: (context, state) => const LedgerScreen(),
-      ),
-      GoRoute(
-        path: RoutePaths.auditLogs,
-        name: RouteNames.auditLogs,
-        builder: (context, state) => const AuditLogsScreen(),
-      ),
-      GoRoute(
-        path: RoutePaths.settings,
-        name: RouteNames.settings,
-        builder: (context, state) => const SettingsScreen(),
+
+      // Shell route — persistent sidebar + top bar layout
+      ShellRoute(
+        navigatorKey: _shellNavigatorKey,
+        builder: (context, state, child) => AppShell(
+          state: state,
+          child: child,
+        ),
+        routes: [
+          GoRoute(
+            path: RoutePaths.dashboard,
+            name: RouteNames.dashboard,
+            builder: (context, state) => const DashboardScreen(),
+          ),
+          GoRoute(
+            path: RoutePaths.members,
+            name: RouteNames.members,
+            builder: (context, state) => const MembersScreen(),
+          ),
+          GoRoute(
+            path: RoutePaths.contributions,
+            name: RouteNames.contributions,
+            builder: (context, state) => const ContributionsScreen(),
+          ),
+          GoRoute(
+            path: RoutePaths.contributionRequests,
+            name: RouteNames.contributionRequests,
+            builder: (context, state) => const ContributionRequestsScreen(),
+          ),
+          GoRoute(
+            path: RoutePaths.investments,
+            name: RouteNames.investments,
+            builder: (context, state) => const InvestmentsScreen(),
+          ),
+          GoRoute(
+            path: RoutePaths.profitLoss,
+            name: RouteNames.profitLoss,
+            builder: (context, state) => const ProfitLossScreen(),
+          ),
+          GoRoute(
+            path: RoutePaths.withdrawals,
+            name: RouteNames.withdrawals,
+            builder: (context, state) => const WithdrawalsScreen(),
+          ),
+          GoRoute(
+            path: RoutePaths.ledger,
+            name: RouteNames.ledger,
+            builder: (context, state) => const LedgerScreen(),
+          ),
+          GoRoute(
+            path: RoutePaths.auditLogs,
+            name: RouteNames.auditLogs,
+            builder: (context, state) => const AuditLogsScreen(),
+          ),
+          GoRoute(
+            path: RoutePaths.settings,
+            name: RouteNames.settings,
+            builder: (context, state) => const SettingsScreen(),
+          ),
+        ],
       ),
     ],
   );

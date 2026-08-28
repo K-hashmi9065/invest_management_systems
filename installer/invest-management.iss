@@ -2,7 +2,7 @@
 ; Production Windows Installer for Invest Management Systems
 
 #define MyAppName "Invest Management Systems"
-#define MyAppVersion "1.0.0"
+#define MyAppVersion "1.0.1"
 #define MyAppPublisher "Invest Management Systems"
 #define MyAppExeName "invest_management_systems.exe"
 [Setup]

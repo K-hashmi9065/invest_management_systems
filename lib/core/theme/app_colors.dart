@@ -36,4 +36,17 @@ class AppColors {
 
   // Brand accent — sparing use, primary CTAs only
   static const Color accent = Color(0xFF7F77DD);
+
+  // Chart visualization palette tokens
+  static const List<Color> chartPalette = [
+    Color(0xFF7F77DD), // Accent Purple
+    Color(0xFF378ADD), // Info Blue
+    Color(0xFF5DCAA5), // Positive Teal
+    Color(0xFFEF9F27), // Warning Amber
+    Color(0xFFAB47BC), // Violet
+    Color(0xFF26A69A), // Cyan-Teal
+    Color(0xFFFF7043), // Deep Orange
+    Color(0xFFEC407A), // Pink
+  ];
 }
+

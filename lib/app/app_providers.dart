@@ -97,6 +97,9 @@ final notificationsProvider = FutureProvider<List<NotificationModel>>((ref) asyn
   return await repo.getNotifications(userId: currentUser?.id);
 });
 
+/// Title of the current page, set by each screen in its build method.
+final pageTitleProvider = StateProvider<String>((ref) => 'Dashboard Overview');
+
 void refreshAllFinancialProviders(dynamic ref) {
   ref.invalidate(groupSummaryProvider);
   ref.invalidate(membersProvider);

@@ -1,20 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import '../../../app/app_providers.dart';
 import '../../../core/constants/app_constants.dart';
-import '../../../core/errors/app_failure.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/currency_formatter.dart';
 import '../../../core/utils/date_formatter.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/app_card.dart';
-import '../../../core/widgets/app_sidebar.dart';
-import '../../../core/widgets/app_text_field.dart';
-import '../../../core/widgets/app_top_bar.dart';
 import '../../../core/widgets/async_value_widget.dart';
-import '../../../core/widgets/status_badge.dart';
 import '../../../core/widgets/horizontal_scrollable_table.dart';
+import '../../../core/widgets/status_badge.dart';
+import 'widgets/add_adjustment_dialog.dart';
 
 final ledgerFilterProvider = StateProvider<String>((ref) => 'ALL');
 
@@ -24,170 +20,7 @@ class LedgerScreen extends ConsumerWidget {
   void _showAddAdjustmentDialog(BuildContext context, WidgetRef ref) {
     final membersAsync = ref.read(membersProvider);
     final members = membersAsync.value ?? [];
-
-    String selectedType = AppConstants.txAdjustment;
-    int? selectedMemberId;
-    final amountCtrl = TextEditingController();
-    final remarksCtrl = TextEditingController();
-    final formKey = GlobalKey<FormState>();
-
-    showDialog(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDialogState) => AlertDialog(
-          backgroundColor: AppColors.surfaceCard,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-            side: const BorderSide(color: AppColors.border, width: 0.5),
-          ),
-          title: const Text(
-            'Record Manual Adjustment / Refund',
-            style: TextStyle(color: AppColors.textPrimary, fontSize: 16),
-          ),
-          content: SizedBox(
-            width: 440,
-            child: Form(
-              key: formKey,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Transaction Type',
-                    style: TextStyle(
-                      color: AppColors.textSecondary,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  DropdownButtonFormField<String>(
-                    initialValue: selectedType,
-                    dropdownColor: AppColors.surfaceElevated,
-                    style: const TextStyle(
-                      color: AppColors.textPrimary,
-                      fontSize: 14,
-                    ),
-                    items: const [
-                      DropdownMenuItem(
-                        value: AppConstants.txAdjustment,
-                        child: Text(
-                          'ADJUSTMENT (Internal Reversal / Correction)',
-                        ),
-                      ),
-                      DropdownMenuItem(
-                        value: 'REFUND',
-                        child: Text('REFUND (Payout Reversal to Member)'),
-                      ),
-                    ],
-                    onChanged: (val) {
-                      if (val != null) {
-                        setDialogState(() => selectedType = val);
-                      }
-                    },
-                  ),
-                  const SizedBox(height: 12),
-                  const Text(
-                    'Associated Member (Optional)',
-                    style: TextStyle(
-                      color: AppColors.textSecondary,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  DropdownButtonFormField<int?>(
-                    initialValue: selectedMemberId,
-                    dropdownColor: AppColors.surfaceElevated,
-                    style: const TextStyle(
-                      color: AppColors.textPrimary,
-                      fontSize: 14,
-                    ),
-                    items: [
-                      const DropdownMenuItem<int?>(
-                        value: null,
-                        child: Text('Group Pool (General Ledger)'),
-                      ),
-                      ...members.map((m) {
-                        return DropdownMenuItem<int?>(
-                          value: m.id,
-                          child: Text('${m.name} (#${m.id})'),
-                        );
-                      }),
-                    ],
-                    onChanged: (val) {
-                      setDialogState(() => selectedMemberId = val);
-                    },
-                  ),
-                  const SizedBox(height: 12),
-                  AppTextField(
-                    label: 'Amount (₹)',
-                    hint: 'e.g. 5000 or -5000',
-                    keyboardType: const TextInputType.numberWithOptions(signed: true, decimal: true),
-                    controller: amountCtrl,
-                    validator: (v) {
-                      if (v == null || v.isEmpty) return 'Amount required';
-                      final parsed = double.tryParse(v);
-                      if (parsed == null || parsed == 0){
-                        return 'Invalid amount';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 12),
-                  AppTextField(
-                    label: 'Audit Remarks / Reason',
-                    hint: 'Enter detailed justification for audit record',
-                    controller: remarksCtrl,
-                    validator: (v) => v == null || v.trim().isEmpty
-                        ? 'Remarks required for audit compliance'
-                        : null,
-                  ),
-                ],
-              ),
-            ),
-          ),
-          actions: [
-            OutlinedButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                if (formKey.currentState!.validate()) {
-                  try {
-                    final rupees = double.parse(amountCtrl.text);
-                    final paise = CurrencyFormatter.rupeesToPaise(rupees);
-                    final user = ref.read(currentUserProvider);
-
-                    await ref
-                        .read(appRepositoryProvider)
-                        .recordAdjustmentOrRefund(
-                          memberId: selectedMemberId,
-                          transactionType: selectedType,
-                          amountPaise: paise,
-                          remarks: remarksCtrl.text.trim(),
-                          actionBy: user?.username ?? 'Admin',
-                        );
-
-                    refreshAllFinancialProviders(ref);
-                    if (ctx.mounted) Navigator.pop(ctx);
-                  } catch (e, st) {
-                    final failure = FailureMapper.map(e, st);
-                    if (ctx.mounted) {
-                      ScaffoldMessenger.of(ctx).showSnackBar(
-                        SnackBar(content: Text(failure.userMessage)),
-                      );
-                    }
-                  }
-                }
-              },
-              child: const Text('Post Entry'),
-            ),
-          ],
-        ),
-      ),
-    );
+    AddAdjustmentDialog.show(context, members);
   }
 
   @override
@@ -196,61 +29,46 @@ class LedgerScreen extends ConsumerWidget {
     final transactionsAsync = ref.watch(transactionsProvider);
     final selectedFilter = ref.watch(ledgerFilterProvider);
 
+    // Set page title for AppShell
+    Future.microtask(() => ref.read(pageTitleProvider.notifier).state = 'Financial Transaction Ledger');
+
     if (user == null) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      return const Center(child: CircularProgressIndicator());
     }
 
     final isAdmin =
         user.role == AppConstants.roleAdmin ||
         user.role == AppConstants.roleSuperAdmin;
 
-    return Scaffold(
-      backgroundColor: AppColors.surfacePage,
-      body: Row(
+    return Padding(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          AppSidebar(currentRoute: '/ledger', userRole: user.role),
-          Expanded(
-            child: Column(
-              children: [
-                AppTopBar(
-                  title: 'Financial Transaction Ledger',
-                  userName: user.fullName,
-                  userRole: user.role,
-                  onLogout: () {
-                    ref.read(currentUserProvider.notifier).logout();
-                    context.go('/login');
-                  },
+          Wrap(
+            spacing: 16,
+            runSpacing: 12,
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              const Text(
+                'Audit-Compliant Master Ledger',
+                style: TextStyle(
+                  color: AppColors.textPrimary,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
                 ),
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Wrap(
-                          spacing: 16,
-                          runSpacing: 12,
-                          alignment: WrapAlignment.spaceBetween,
-                          crossAxisAlignment: WrapCrossAlignment.center,
-                          children: [
-                            const Text(
-                              'Audit-Compliant Master Ledger',
-                              style: TextStyle(
-                                color: AppColors.textPrimary,
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            if (isAdmin)
-                              AppButton(
-                                text: 'Add Adjustment / Refund',
-                                icon: Icons.tune,
-                                onPressed: () =>
-                                    _showAddAdjustmentDialog(context, ref),
-                              ),
-                          ],
-                        ),
-                        const SizedBox(height: 16),
+              ),
+              if (isAdmin)
+                AppButton(
+                  text: 'Add Adjustment / Refund',
+                  icon: Icons.tune,
+                  onPressed: () =>
+                      _showAddAdjustmentDialog(context, ref),
+                ),
+            ],
+          ),
+          const SizedBox(height: 16),
 
                         // Filter Chips
                         Wrap(
@@ -419,13 +237,6 @@ class LedgerScreen extends ConsumerWidget {
                         ),
                       ],
                     ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
+          );
   }
 }
