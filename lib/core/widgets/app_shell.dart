@@ -7,15 +7,15 @@ import 'app_sidebar.dart';
 import 'app_top_bar.dart';
 
 /// Persistent shell layout with sidebar + top bar.
-/// The [child] is swapped by GoRouter's ShellRoute on navigation,
-/// so the sidebar and top bar are never rebuilt — eliminating the blink.
+/// Uses GoRouter's [StatefulNavigationShell] to preserve tab widget state inside an IndexedStack,
+/// eliminating rebuild flicker when switching tabs.
 class AppShell extends ConsumerWidget {
-  final Widget child;
+  final StatefulNavigationShell navigationShell;
   final GoRouterState state;
 
   const AppShell({
     super.key,
-    required this.child,
+    required this.navigationShell,
     required this.state,
   });
 
@@ -68,6 +68,7 @@ class AppShell extends ConsumerWidget {
           AppSidebar(
             currentRoute: state.matchedLocation,
             userRole: user.role,
+            navigationShell: navigationShell,
           ),
           Expanded(
             child: Column(
@@ -81,7 +82,7 @@ class AppShell extends ConsumerWidget {
                     context.go('/login');
                   },
                 ),
-                Expanded(child: child),
+                Expanded(child: navigationShell),
               ],
             ),
           ),
@@ -90,3 +91,4 @@ class AppShell extends ConsumerWidget {
     );
   }
 }
+

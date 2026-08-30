@@ -38,11 +38,11 @@ final routerNotifierProvider = Provider<RouterNotifier>((ref) {
 /// route change. Reset to null on logout so re-login rechecks.
 bool? _cachedIsSetupNeeded;
 
-Future<String?> appRedirect({
+String? appRedirect({
   required ProviderReader read,
   required BuildContext context,
   required GoRouterState state,
-}) async {
+}) {
   // 1. Device Lock Check
   if (!DeviceLockService.isAuthorized()) {
     if (state.matchedLocation != RoutePaths.deviceUnauthorized) {
@@ -51,10 +51,8 @@ Future<String?> appRedirect({
     return null;
   }
 
-  // 2. First-Time Setup Check (cached after first call)
-  final repo = read(appRepositoryProvider);
-  _cachedIsSetupNeeded ??= await repo.isFirstTimeSetupNeeded();
-  if (_cachedIsSetupNeeded! && state.matchedLocation != RoutePaths.setup) {
+  // 2. First-Time Setup Check (checked via sync cache)
+  if (_cachedIsSetupNeeded == true && state.matchedLocation != RoutePaths.setup) {
     return RoutePaths.setup;
   }
 
@@ -95,10 +93,18 @@ Future<String?> appRedirect({
   return null;
 }
 
-final _shellNavigatorKey = GlobalKey<NavigatorState>();
-
 final routerProvider = Provider<GoRouter>((ref) {
   final notifier = ref.watch(routerNotifierProvider);
+
+  // Pre-trigger setup check asynchronously if not yet cached so login/setup state updates cleanly
+  if (_cachedIsSetupNeeded == null) {
+    ref.read(appRepositoryProvider).isFirstTimeSetupNeeded().then((needed) {
+      _cachedIsSetupNeeded = needed;
+    }).catchError((_) {
+      _cachedIsSetupNeeded = false;
+    });
+  }
+
   return GoRouter(
     initialLocation: RoutePaths.dashboard,
     refreshListenable: notifier,
@@ -122,66 +128,106 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const DeviceUnauthorizedScreen(),
       ),
 
-      // Shell route — persistent sidebar + top bar layout
-      ShellRoute(
-        navigatorKey: _shellNavigatorKey,
-        builder: (context, state, child) => AppShell(
+      // Stateful Shell Route — preserves tab widget state inside an IndexedStack to prevent tab blink
+      StatefulShellRoute.indexedStack(
+        builder: (context, state, navigationShell) => AppShell(
           state: state,
-          child: child,
+          navigationShell: navigationShell,
         ),
-        routes: [
-          GoRoute(
-            path: RoutePaths.dashboard,
-            name: RouteNames.dashboard,
-            builder: (context, state) => const DashboardScreen(),
+        branches: [
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: RoutePaths.dashboard,
+                name: RouteNames.dashboard,
+                builder: (context, state) => const DashboardScreen(),
+              ),
+            ],
           ),
-          GoRoute(
-            path: RoutePaths.members,
-            name: RouteNames.members,
-            builder: (context, state) => const MembersScreen(),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: RoutePaths.members,
+                name: RouteNames.members,
+                builder: (context, state) => const MembersScreen(),
+              ),
+            ],
           ),
-          GoRoute(
-            path: RoutePaths.contributions,
-            name: RouteNames.contributions,
-            builder: (context, state) => const ContributionsScreen(),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: RoutePaths.contributions,
+                name: RouteNames.contributions,
+                builder: (context, state) => const ContributionsScreen(),
+              ),
+            ],
           ),
-          GoRoute(
-            path: RoutePaths.contributionRequests,
-            name: RouteNames.contributionRequests,
-            builder: (context, state) => const ContributionRequestsScreen(),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: RoutePaths.contributionRequests,
+                name: RouteNames.contributionRequests,
+                builder: (context, state) => const ContributionRequestsScreen(),
+              ),
+            ],
           ),
-          GoRoute(
-            path: RoutePaths.investments,
-            name: RouteNames.investments,
-            builder: (context, state) => const InvestmentsScreen(),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: RoutePaths.investments,
+                name: RouteNames.investments,
+                builder: (context, state) => const InvestmentsScreen(),
+              ),
+            ],
           ),
-          GoRoute(
-            path: RoutePaths.profitLoss,
-            name: RouteNames.profitLoss,
-            builder: (context, state) => const ProfitLossScreen(),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: RoutePaths.profitLoss,
+                name: RouteNames.profitLoss,
+                builder: (context, state) => const ProfitLossScreen(),
+              ),
+            ],
           ),
-          GoRoute(
-            path: RoutePaths.withdrawals,
-            name: RouteNames.withdrawals,
-            builder: (context, state) => const WithdrawalsScreen(),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: RoutePaths.withdrawals,
+                name: RouteNames.withdrawals,
+                builder: (context, state) => const WithdrawalsScreen(),
+              ),
+            ],
           ),
-          GoRoute(
-            path: RoutePaths.ledger,
-            name: RouteNames.ledger,
-            builder: (context, state) => const LedgerScreen(),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: RoutePaths.ledger,
+                name: RouteNames.ledger,
+                builder: (context, state) => const LedgerScreen(),
+              ),
+            ],
           ),
-          GoRoute(
-            path: RoutePaths.auditLogs,
-            name: RouteNames.auditLogs,
-            builder: (context, state) => const AuditLogsScreen(),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: RoutePaths.auditLogs,
+                name: RouteNames.auditLogs,
+                builder: (context, state) => const AuditLogsScreen(),
+              ),
+            ],
           ),
-          GoRoute(
-            path: RoutePaths.settings,
-            name: RouteNames.settings,
-            builder: (context, state) => const SettingsScreen(),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: RoutePaths.settings,
+                name: RouteNames.settings,
+                builder: (context, state) => const SettingsScreen(),
+              ),
+            ],
           ),
         ],
       ),
     ],
   );
 });
+
